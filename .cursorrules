@@ -1,0 +1,85 @@
+# CRM Automotivo SaaS - Regras do projeto
+
+Você está trabalhando em um CRM multi-tenant para lojas de automóveis, projetado como SaaS desde o início.
+
+## Stack
+- Next.js 15 (App Router, Server Actions)
+- TypeScript estrito (strict, noUncheckedIndexedAccess)
+- PostgreSQL 16 + Prisma 5
+- Auth.js v5 (NextAuth)
+- BullMQ + Redis pra filas
+- MinIO (S3-compatible) pra arquivos
+- shadcn/ui + Tailwind CSS v4
+- Zod pra validação
+- Vitest pra testes
+
+## Princípios INEGOCIÁVEIS
+
+### 1. Multi-tenancy
+- TODA tabela de domínio tem `organizationId`. Nunca criar tabela sem isso (exceto cache global tipo `fipe_*` e tabelas de plataforma).
+- TODA query Prisma de domínio passa por `getTenantPrisma(orgId)`, NUNCA chama `prisma` direto em código de feature.
+- TODA Server Action e Route Handler começa validando `session.activeOrgId` e checando permissões via `assertCan(user, 'resource', 'action')`.
+- Webhooks externos identificam a org via campo no payload OU mapeamento por instância (ex: `whatsapp_instances.id` → `organization_id`).
+
+### 2. Segurança
+- Senhas: bcrypt cost 12.
+- Credenciais de integração: AES-256-GCM via `lib/crypto.ts` com chave em `ENCRYPTION_KEY`.
+- Nunca logar tokens, senhas, ou conteúdo de mensagens completas.
+- Toda mutation valida input com Zod ANTES de tocar no banco.
+- Audit log automático em ações sensíveis (criar/editar/deletar veículo, lead, deal, sale, user).
+
+### 3. Background jobs
+- Toda chamada a API externa vai pra fila BullMQ. Nunca dentro de request HTTP síncrono.
+- Filas: `whatsapp-out`, `whatsapp-in`, `portals-sync`, `webhooks-in`, `notifications`, `reports`, `nfe`, `automations`.
+- Jobs são idempotentes. Webhooks externos têm `external_id` único e são deduplicados.
+- Workers rodam em processo separado (entry points em `src/workers/`).
+
+### 4. Estrutura
+- Lógica de domínio em `src/modules/<modulo>/` (services, repositories, schemas Zod).
+- Server Actions em `src/app/(app)/[orgSlug]/<feature>/actions.ts`.
+- Componentes UI em `src/components/` (shared) ou colocalizados na rota.
+- Integrações externas em `src/lib/integrations/<integracao>/` com interface comum + adapters.
+- Helpers de banco em `src/lib/db/` (cliente Prisma, tenant helpers).
+
+### 5. Estilo de código
+- Nomes em inglês (código, banco, comentários).
+- Strings de UI em pt-BR.
+- Funções pequenas e puras quando possível.
+- Sem `any`. Quando precisar, comente o porquê.
+- Erros tipados: criar `AppError` base e derivar `NotFoundError`, `PermissionError`, `ValidationError`, `IntegrationError`.
+- Não use `console.log` em código de produção. Use `logger` de `src/lib/logger.ts`.
+
+### 6. Banco de dados
+- Migrations sempre via `prisma migrate dev --name descricao_clara`.
+- Nunca editar migration já aplicada — criar nova.
+- Índices compostos sempre começam com `organizationId`.
+- Soft delete via `deletedAt` apenas em entidades que precisam (vehicle, lead, customer). O resto é hard delete.
+- Enums em UPPER_SNAKE_CASE no banco e no Prisma.
+
+### 7. UI
+- shadcn/ui como base. Componentes em `src/components/ui/`.
+- Toda lista grande usa paginação cursor-based.
+- Toda mutation usa Server Action + `useFormState` ou `useTransition`.
+- Loading states com Suspense quando possível.
+- Mensagens de erro em pt-BR, claras, sem jargão técnico.
+- Dark mode desde o início (Tailwind `dark:`).
+
+### 8. Testes
+- Vitest pra unit tests de services e helpers.
+- Testar SEMPRE: lógica de permissões, helpers de tenant, validações Zod, cálculos de comissão, parsing de webhooks.
+- Não testar componentes triviais nem rotas CRUD básicas no MVP.
+
+### 9. O que NUNCA fazer
+- Nunca usar `prisma` diretamente em código de feature (sempre `tenantDb`).
+- Nunca chamar API externa sem fila.
+- Nunca confiar em input do cliente sem Zod.
+- Nunca fazer query N+1 (sempre `include` ou `select` explícito).
+- Nunca expor `id` interno em URL pública sem checar permissão.
+- Nunca commitar `.env`, certificados, chaves.
+- Nunca usar `useEffect` pra buscar dados se Server Component resolve.
+
+## Quando estiver em dúvida
+- Sobre stack/arquitetura: consultar `docs/01-especificacao-tecnica.md`
+- Sobre o banco: consultar `docs/02-modelo-de-dados.sql`
+- Sobre o que entra em cada fase: consultar `docs/03-roadmap-faseado.md`
+- Sobre permissões: consultar `src/lib/auth/permissions.ts`

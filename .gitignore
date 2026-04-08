@@ -22,6 +22,10 @@
 
 # misc
 .DS_Store
+
+# environment (explicit + padrão .env*)
+.env
+.env.local
 *.pem
 
 # debug
