@@ -21,3 +21,22 @@ e orçamentos diferentes de WhatsApp.
 Evolution (self-hosted, pra quem quer custo zero).
 **Consequência**: Flexibilidade máxima, zero lock-in com fornecedor
 único de WhatsApp.
+
+### 2025-XX-XX — Prisma 5.22 em vez de Prisma 7
+**Contexto**: O Prisma 7 tem mudanças incompatíveis (URL fora do
+schema.prisma, novo formato de cliente). O .cursorrules e a
+especificação foram escritos pensando em Prisma 5.
+**Decisão**: Fixar Prisma 5.22 explicitamente em prisma e
+@prisma/client.
+**Consequência**: Estabilidade pro desenvolvimento atual. Migrar
+pra Prisma 7 fica como tarefa futura quando o ecosystem amadurecer.
+
+### 2025-XX-XX — Membership.invitedById sem relation reversa
+**Contexto**: A relation reversa membershipInvites no User polui
+o schema sem benefício real (nunca consultaríamos "quais memberships
+esse user convidou").
+**Decisão**: Manter invitedById como campo String simples, sem
+relation Prisma. Buscar o user que convidou via query manual quando
+necessário.
+**Consequência**: Schema mais limpo, IntelliSense menos poluído.
+Custo: queries que envolvem o convidador precisam de join manual.
