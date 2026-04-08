@@ -36,7 +36,7 @@ function getEncryptionKey(): Buffer {
  * Formato do resultado: Base64 de `IV (12 bytes) || auth tag (16 bytes) || ciphertext`.
  * Adequado para guardar credenciais (tokens, chaves de API, certificados) em repouso.
  *
- * **Segurança:** a chave vem só de `ENCRYPTION_KEY` no ambiente; rodeção e gestão
+ * **Segurança:** a chave vem só de `ENCRYPTION_KEY` no ambiente; rotação e gestão
  * de segredos são responsabilidade da infra (nunca commitar `.env`).
  */
 export function encrypt(plain: string): string {
