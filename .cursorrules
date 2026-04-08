@@ -1,5 +1,17 @@
 # CRM Automotivo SaaS - Regras do projeto
 
+## Leituras obrigatórias antes de codar
+
+Antes de gerar código, leia também:
+- AGENTS.md — avisos sobre breaking changes do Next.js 15 (a versão
+  que usamos tem diferenças em relação ao training data dos modelos)
+- docs/01-especificacao-tecnica.md — especificação técnica completa
+  do projeto
+- docs/04-guia-cursor.md — convenções, prompts e padrões deste projeto
+
+Sempre que houver dúvida sobre APIs do Next 15, consulte
+node_modules/next/dist/docs/ antes de assumir comportamento.
+
 Você está trabalhando em um CRM multi-tenant para lojas de automóveis, projetado como SaaS desde o início.
 
 ## Stack
