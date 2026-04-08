@@ -2,6 +2,9 @@
   "name": "vrumcar",
   "version": "0.1.0",
   "private": true,
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
   "scripts": {
     "db:up": "docker compose -f docker/docker-compose.yml up -d",
     "dev": "next dev --turbopack",
@@ -10,6 +13,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@prisma/client": "^5.22.0",
     "next": "15.5.14",
     "react": "19.2.4",
     "react-dom": "19.2.4"
@@ -24,7 +28,9 @@
     "eslint-config-next": "15.5.14",
     "prettier": "^3.8.1",
     "prettier-plugin-tailwindcss": "^0.7.2",
+    "prisma": "^5.22.0",
     "tailwindcss": "^4",
+    "tsx": "^4.21.0",
     "typescript": "^5"
   }
 }

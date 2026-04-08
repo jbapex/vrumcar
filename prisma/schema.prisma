@@ -1,0 +1,176 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum OrgRole {
+  OWNER
+  ADMIN
+  MANAGER
+  SALES
+  FINANCE
+  VIEWER
+
+  @@map("org_role")
+}
+
+model Plan {
+  id                 String   @id @default(cuid()) @map("id")
+  slug               String   @unique @map("slug")
+  name               String   @map("name")
+  monthlyPriceCents  Int      @map("monthly_price_cents")
+  yearlyPriceCents   Int      @map("yearly_price_cents")
+  maxUsers           Int      @map("max_users")
+  maxVehicles        Int      @map("max_vehicles")
+  maxWhatsappMsgs    Int      @map("max_whatsapp_msgs")
+  features           Json     @default("{}") @map("features")
+  isPublic           Boolean  @default(true) @map("is_public")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  subscriptions Subscription[]
+
+  @@map("plans")
+}
+
+model Organization {
+  id          String    @id @default(cuid()) @map("id")
+  slug        String    @unique @map("slug")
+  name        String    @map("name")
+  legalName   String?   @map("legal_name")
+  cnpj        String?   @map("cnpj")
+  phone       String?   @map("phone")
+  email       String?   @map("email")
+  address     Json?     @map("address")
+  logoUrl     String?   @map("logo_url")
+  timezone    String    @default("America/Sao_Paulo") @map("timezone")
+  status      String    @default("ACTIVE") @map("status")
+  trialEndsAt DateTime? @map("trial_ends_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  memberships   Membership[]
+  subscription  Subscription?
+  invitations   Invitation[]
+
+  @@index([status])
+  @@map("organizations")
+}
+
+model Subscription {
+  id                 String   @id @default(cuid()) @map("id")
+  organizationId     String   @unique @map("organization_id")
+  planId             String   @map("plan_id")
+  status             String   @map("status")
+  currentPeriodStart DateTime @map("current_period_start")
+  currentPeriodEnd   DateTime @map("current_period_end")
+  cancelAtPeriodEnd  Boolean  @default(false) @map("cancel_at_period_end")
+  externalId         String?  @map("external_id")
+  externalProvider   String?  @map("external_provider")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  plan         Plan         @relation(fields: [planId], references: [id])
+
+  @@map("subscriptions")
+}
+
+model User {
+  id            String    @id @default(cuid()) @map("id")
+  email         String    @unique @map("email")
+  name          String    @map("name")
+  passwordHash  String?   @map("password_hash")
+  emailVerified DateTime? @map("email_verified")
+  avatarUrl     String?   @map("avatar_url")
+  totpSecret    String?   @map("totp_secret")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  accounts          Account[]
+  sessions          Session[]
+  memberships       Membership[]  @relation("MembershipUser")
+  invitationsSent   Invitation[]  @relation("InvitationInvitedBy")
+  membershipInvites Membership[]  @relation("MembershipInvitedBy")
+
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(cuid()) @map("id")
+  userId            String  @map("user_id")
+  provider          String  @map("provider")
+  providerAccountId String  @map("provider_account_id")
+  refreshToken      String? @map("refresh_token")
+  accessToken       String? @map("access_token")
+  expiresAt         Int?    @map("expires_at")
+  tokenType         String? @map("token_type")
+  scope             String? @map("scope")
+  idToken           String? @map("id_token")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid()) @map("id")
+  sessionToken String   @unique @map("session_token")
+  userId       String   @map("user_id")
+  expires      DateTime @map("expires")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime @map("expires")
+
+  @@id([identifier, token])
+  @@map("verification_tokens")
+}
+
+model Membership {
+  id             String   @id @default(cuid()) @map("id")
+  organizationId String   @map("organization_id")
+  userId         String   @map("user_id")
+  role           OrgRole  @map("role")
+  isActive       Boolean  @default(true) @map("is_active")
+  invitedById    String?  @map("invited_by")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation("MembershipUser", fields: [userId], references: [id], onDelete: Cascade)
+  invitedBy    User?        @relation("MembershipInvitedBy", fields: [invitedById], references: [id])
+
+  @@unique([organizationId, userId])
+  @@index([organizationId])
+  @@index([userId])
+  @@map("memberships")
+}
+
+model Invitation {
+  id             String    @id @default(cuid()) @map("id")
+  organizationId String    @map("organization_id")
+  email          String    @map("email")
+  role           OrgRole   @map("role")
+  token          String    @unique @map("token")
+  invitedById    String    @map("invited_by")
+  expiresAt      DateTime  @map("expires_at")
+  acceptedAt     DateTime? @map("accepted_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invitedBy    User         @relation("InvitationInvitedBy", fields: [invitedById], references: [id])
+
+  @@map("invitations")
+}
