@@ -5,7 +5,7 @@ services:
     image: postgres:16-alpine
     container_name: vrumcar-postgres
     ports:
-      - '5433:5432'
+      - '5434:5432'
     environment:
       POSTGRES_USER: vrumcar
       POSTGRES_PASSWORD: vrumcar_dev_password
@@ -22,7 +22,7 @@ services:
     image: redis:7-alpine
     container_name: vrumcar-redis
     ports:
-      - '6380:6379'
+      - '6381:6379'
     volumes:
       - vrumcar_redis_data:/data
     command: redis-server --appendonly yes
