@@ -63,6 +63,7 @@ model Organization {
   leads             Lead[]
   leadInteractions  LeadInteraction[]
   customers         Customer[]
+  sales             Sale[]
 
   @@index([status])
   @@map("organizations")
@@ -103,6 +104,7 @@ model User {
   memberships     Membership[] @relation("MembershipUser")
   invitationsSent Invitation[] @relation("InvitationInvitedBy")
   assignedLeads   Lead[]       @relation("LeadAssignedTo")
+  sales           Sale[]       @relation("SalesSalesPerson")
 
   @@map("users")
 }
@@ -283,6 +285,7 @@ model Vehicle {
   costs            VehicleCost[]
   priceHistory     VehiclePriceHistory[]
   interestedLeads  Lead[]             @relation("LeadInterestVehicle")
+  sales            Sale[]             @relation("SaleVehicle")
 
   // Auditoria
   createdBy String?   @map("created_by")
@@ -433,6 +436,7 @@ model Customer {
   tags  String[] @default([])
 
   leads Lead[]
+  sales Sale[]
 
   createdBy String?   @map("created_by")
   createdAt DateTime  @default(now()) @map("created_at")
@@ -443,6 +447,74 @@ model Customer {
   @@index([organizationId, phone])
   @@index([organizationId, email])
   @@map("customers")
+}
+
+// ===== VENDAS =====
+
+enum SaleStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  CASH
+  BANK_TRANSFER
+  DEBIT_CARD
+  CREDIT_CARD
+  FINANCING
+  CONSORTIUM
+  TRADE_IN_ONLY
+  MIXED
+}
+
+model Sale {
+  id             String       @id @default(cuid())
+  organizationId String       @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  vehicleId String  @map("vehicle_id")
+  vehicle   Vehicle @relation("SaleVehicle", fields: [vehicleId], references: [id])
+  customerId String   @map("customer_id")
+  customer   Customer @relation(fields: [customerId], references: [id])
+  leadId     String?  @unique @map("lead_id")
+  lead       Lead?    @relation("SaleLead", fields: [leadId], references: [id])
+  salesPersonId String @map("sales_person_id")
+  salesPerson   User   @relation("SalesSalesPerson", fields: [salesPersonId], references: [id])
+
+  listPriceCents  Int @map("list_price_cents")
+  finalPriceCents Int @map("final_price_cents")
+  discountCents   Int @default(0) @map("discount_cents")
+
+  paymentMethod PaymentMethod @map("payment_method")
+  paymentNotes  String?       @map("payment_notes") @db.Text
+
+  hasTradeIn       Boolean @default(false) @map("has_trade_in")
+  tradeInBrand     String? @map("trade_in_brand")
+  tradeInModel     String? @map("trade_in_model")
+  tradeInYear      Int?    @map("trade_in_year")
+  tradeInMileageKm Int?    @map("trade_in_mileage_km")
+  tradeInPlate     String? @map("trade_in_plate")
+  tradeInValueCents Int?   @map("trade_in_value_cents")
+  tradeInNotes     String? @map("trade_in_notes") @db.Text
+
+  contractNumber String? @map("contract_number")
+  notes          String? @db.Text
+
+  status          SaleStatus @default(COMPLETED)
+  soldAt          DateTime   @default(now()) @map("sold_at")
+  cancelledAt     DateTime?  @map("cancelled_at")
+  cancelledReason String?    @map("cancelled_reason")
+
+  createdBy String?  @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([organizationId, status, soldAt])
+  @@index([organizationId, salesPersonId, soldAt])
+  @@index([organizationId, customerId])
+  @@index([vehicleId])
+  @@map("sales")
 }
 
 model Lead {
@@ -477,6 +549,7 @@ model Lead {
   interactions LeadInteraction[]
   customerId   String?   @map("customer_id")
   customer     Customer? @relation(fields: [customerId], references: [id])
+  sale         Sale?     @relation("SaleLead")
 
   lostReason    String?   @map("lost_reason")
   wonAt         DateTime? @map("won_at")

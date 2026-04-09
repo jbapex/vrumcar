@@ -82,19 +82,21 @@ describe('createOrganizationWithOwner', () => {
     });
     createdUserEmails.push(email);
 
-    const orgCountBefore = await prisma.organization.count();
+    const orgName = `Loja Beta ${t}`;
 
     await expect(
       createOrganizationWithOwner({
         name: 'Outro',
         email,
         password: 'outrasenha2',
-        organizationName: `Loja Beta ${t}`,
+        organizationName: orgName,
       }),
     ).rejects.toThrow(ConflictError);
 
-    const orgCountAfter = await prisma.organization.count();
-    expect(orgCountAfter).toBe(orgCountBefore);
+    const orgsWithThatName = await prisma.organization.count({
+      where: { name: orgName },
+    });
+    expect(orgsWithThatName).toBe(0);
   });
 
   it('retorna slug com sufixo se base já existe', async () => {

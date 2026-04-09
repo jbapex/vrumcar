@@ -12,7 +12,8 @@ type TenantDelegateName =
   | 'vehiclePriceHistory'
   | 'lead'
   | 'leadInteraction'
-  | 'customer';
+  | 'customer'
+  | 'sale';
 
 export class TenantNotFoundError extends Error {
   readonly model: string;
@@ -246,6 +247,7 @@ export function getTenantPrisma(organizationId: string) {
       lead: tenantModelExtension(orgId, 'lead'),
       leadInteraction: tenantModelExtension(orgId, 'leadInteraction'),
       customer: tenantModelExtension(orgId, 'customer'),
+      sale: tenantModelExtension(orgId, 'sale'),
     },
   });
 }
