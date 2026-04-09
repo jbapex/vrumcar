@@ -87,3 +87,30 @@ de retrabalho se não tipasse seria muito maior.
 **Consequência**: Qualquer fila nova que entre vai ter payload tipado
 em tempo de compilação. Previne uma classe inteira de bugs "worker
 quebra porque alguém enfileirou payload errado".
+
+### 2026-04-09 — Bucket policy aplicada no ensureBucket (em vez de config manual)
+
+**Contexto**: Upload de fotos via MinIO funcionava (arquivo subia com
+sucesso), mas o <img> no navegador mostrava ícone quebrado. Causa:
+MinIO recente tem bucket privado por default e o ACL: 'public-read'
+no PutObjectCommand é ignorado silenciosamente. Precisa de uma bucket
+policy explícita pra permitir leitura anônima.
+
+**Decisão**: Aplicar a policy pública via PutBucketPolicyCommand dentro
+da função ensureBucket(), em vez de configurar manualmente no console
+do MinIO. Também removido o ACL por objeto do PutObjectCommand
+(redundante e pode conflitar).
+
+**Consequência**:
+- Funciona igual em dev local (MinIO) e produção (AWS S3, GCS, etc)
+- Zero configuração manual de bucket em qualquer ambiente
+- Policy fica versionada no código, auditável
+- Idempotente: pode rodar 1000 vezes sem problema
+- Protege contra drift de configuração (buckets criados fora do código
+  também ganham a policy)
+- Uploads (PUT) continuam precisando de credenciais — só GET é público
+
+**Lição aprendida**: Sempre que um serviço de infraestrutura precisar
+de configuração, preferir código declarativo e idempotente versionado
+no repositório a checklists manuais no console — reduz drift entre
+ambientes e facilita onboarding.
