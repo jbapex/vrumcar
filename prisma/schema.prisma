@@ -53,9 +53,13 @@ model Organization {
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
 
-  memberships   Membership[]
-  subscription  Subscription?
-  invitations   Invitation[]
+  memberships    Membership[]
+  subscription   Subscription?
+  invitations    Invitation[]
+  vehicles       Vehicle[]
+  vehiclePhotos  VehiclePhoto[]
+  vehicleCosts   VehicleCost[]
+  vehiclePrices  VehiclePriceHistory[]
 
   @@index([status])
   @@map("organizations")
@@ -171,4 +175,190 @@ model Invitation {
   invitedBy    User         @relation("InvitationInvitedBy", fields: [invitedById], references: [id])
 
   @@map("invitations")
+}
+
+// ===== ESTOQUE DE VEÍCULOS =====
+
+enum VehicleStatus {
+  AVAILABLE
+  RESERVED
+  SOLD
+  IN_PREPARATION
+  IN_MAINTENANCE
+  INACTIVE
+}
+
+enum FuelType {
+  GASOLINE
+  ETHANOL
+  FLEX
+  DIESEL
+  ELECTRIC
+  HYBRID
+  CNG
+}
+
+enum TransmissionType {
+  MANUAL
+  AUTOMATIC
+  CVT
+  SEMI_AUTOMATIC
+}
+
+enum BodyType {
+  HATCH
+  SEDAN
+  SUV
+  PICKUP
+  MINIVAN
+  COUPE
+  CONVERTIBLE
+  WAGON
+  VAN
+  OTHER
+}
+
+enum VehicleCategory {
+  POPULAR
+  MEDIUM
+  LUXURY
+  PREMIUM
+  COMMERCIAL
+}
+
+model Vehicle {
+  id             String       @id @default(cuid())
+  organizationId String       @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  // Obrigatórios
+  brand          String
+  model          String
+  salePriceCents Int          @map("sale_price_cents")
+
+  // Opcionais — identificação
+  version   String?
+  year      Int?
+  modelYear Int?    @map("model_year")
+
+  // Opcionais — visuais
+  exteriorColor String? @map("exterior_color")
+  interiorColor String? @map("interior_color")
+
+  // Opcionais — técnicos
+  mileageKm    Int?                @map("mileage_km")
+  fuelType     FuelType?           @map("fuel_type")
+  transmission TransmissionType?
+  bodyType     BodyType?           @map("body_type")
+  category     VehicleCategory?
+  engineSize   String?             @map("engine_size")
+  doors        Int?
+
+  // Opcionais — documentação
+  licensePlate  String? @map("license_plate")
+  chassisNumber String? @map("chassis_number")
+  renavam       String?
+  fipeCode      String? @map("fipe_code")
+
+  // Opcionais — descrição e extras
+  description String?  @db.Text
+  optionals   String[] @default([])
+  notes       String?  @db.Text
+
+  // Custos
+  acquisitionCostCents Int? @map("acquisition_cost_cents")
+  minPriceCents        Int? @map("min_price_cents")
+  fipePriceCents       Int? @map("fipe_price_cents")
+
+  // Status e flags
+  status     VehicleStatus @default(AVAILABLE)
+  isComplete Boolean       @default(false) @map("is_complete")
+
+  // Relacionamentos
+  photos       VehiclePhoto[]
+  costs        VehicleCost[]
+  priceHistory VehiclePriceHistory[]
+
+  // Auditoria
+  createdBy String?   @map("created_by")
+  updatedBy String?   @map("updated_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@index([organizationId, status])
+  @@index([organizationId, brand, model])
+  @@index([organizationId, createdAt])
+  @@index([organizationId, licensePlate])
+  @@map("vehicles")
+}
+
+model VehiclePhoto {
+  id             String       @id @default(cuid())
+  organizationId String       @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  vehicleId      String       @map("vehicle_id")
+  vehicle        Vehicle      @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  url        String
+  storageKey String  @map("storage_key")
+  order      Int     @default(0)
+  isCover    Boolean @default(false) @map("is_cover")
+
+  mimeType  String? @map("mime_type")
+  sizeBytes Int?    @map("size_bytes")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([organizationId, vehicleId])
+  @@index([vehicleId, order])
+  @@map("vehicle_photos")
+}
+
+enum VehicleCostType {
+  PURCHASE
+  TRANSFER
+  MECHANIC
+  BODYWORK
+  DETAILING
+  INSPECTION
+  PHOTOS
+  CLEANING
+  OTHER
+}
+
+model VehicleCost {
+  id             String          @id @default(cuid())
+  organizationId String          @map("organization_id")
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  vehicleId      String          @map("vehicle_id")
+  vehicle        Vehicle         @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  type           VehicleCostType
+  description    String
+  amountCents    Int             @map("amount_cents")
+  occurredAt     DateTime        @default(now()) @map("occurred_at")
+
+  createdBy String?  @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([organizationId, vehicleId])
+  @@map("vehicle_costs")
+}
+
+model VehiclePriceHistory {
+  id             String       @id @default(cuid())
+  organizationId String       @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  vehicleId      String       @map("vehicle_id")
+  vehicle        Vehicle      @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  oldPriceCents Int?     @map("old_price_cents")
+  newPriceCents Int      @map("new_price_cents")
+  reason        String?
+  changedBy     String?  @map("changed_by")
+  changedAt     DateTime @default(now()) @map("changed_at")
+
+  @@index([organizationId, vehicleId])
+  @@index([vehicleId, changedAt])
+  @@map("vehicle_price_history")
 }

@@ -2,7 +2,14 @@
 import { prisma } from './index';
 
 /** Models com `organizationId` escopados pelo tenant helper. */
-type TenantDelegateName = 'subscription' | 'membership' | 'invitation';
+type TenantDelegateName =
+  | 'subscription'
+  | 'membership'
+  | 'invitation'
+  | 'vehicle'
+  | 'vehiclePhoto'
+  | 'vehicleCost'
+  | 'vehiclePriceHistory';
 
 export class TenantNotFoundError extends Error {
   readonly model: string;
@@ -214,6 +221,8 @@ function tenantModelExtension(
  *
  * Operações com WhereUniqueInput validam o tenant com `findFirst` no cliente
  * raw antes de delegar, para não violar o tipo (sem AND no root do where).
+ *
+ * Veículos e anexos (fotos, custos, histórico de preço) seguem o mesmo padrão.
  */
 export function getTenantPrisma(organizationId: string) {
   if (!organizationId?.trim()) {
@@ -227,6 +236,10 @@ export function getTenantPrisma(organizationId: string) {
       subscription: tenantModelExtension(orgId, 'subscription'),
       membership: tenantModelExtension(orgId, 'membership'),
       invitation: tenantModelExtension(orgId, 'invitation'),
+      vehicle: tenantModelExtension(orgId, 'vehicle'),
+      vehiclePhoto: tenantModelExtension(orgId, 'vehiclePhoto'),
+      vehicleCost: tenantModelExtension(orgId, 'vehicleCost'),
+      vehiclePriceHistory: tenantModelExtension(orgId, 'vehiclePriceHistory'),
     },
   });
 }
