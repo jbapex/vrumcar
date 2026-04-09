@@ -1,11 +1,11 @@
 import Link from 'next/link';
-import { loginAction } from './actions';
+import { signupAction } from './actions';
 
 type Props = {
   searchParams: Promise<{ error?: string }>;
 };
 
-export default async function LoginPage({ searchParams }: Props) {
+export default async function SignupPage({ searchParams }: Props) {
   const params = await searchParams;
   const error = params.error;
 
@@ -15,13 +15,34 @@ export default async function LoginPage({ searchParams }: Props) {
         <h1 className="mb-6 text-center text-2xl font-semibold text-zinc-900">
           VrumCar
         </h1>
-        <form action={loginAction} className="flex flex-col gap-4">
+        {error ? (
+          <p className="mb-4 text-sm text-red-600" role="alert">
+            {error}
+          </p>
+        ) : null}
+        <form action={signupAction} className="flex flex-col gap-4">
+          <div>
+            <label
+              htmlFor="name"
+              className="mb-1 block text-sm font-medium text-zinc-700"
+            >
+              Seu nome
+            </label>
+            <input
+              id="name"
+              name="name"
+              type="text"
+              required
+              autoComplete="name"
+              className="w-full rounded border border-zinc-300 px-3 py-2 text-zinc-900"
+            />
+          </div>
           <div>
             <label
               htmlFor="email"
               className="mb-1 block text-sm font-medium text-zinc-700"
             >
-              Email
+              Seu email
             </label>
             <input
               id="email"
@@ -37,32 +58,43 @@ export default async function LoginPage({ searchParams }: Props) {
               htmlFor="password"
               className="mb-1 block text-sm font-medium text-zinc-700"
             >
-              Senha
+              Senha (mínimo 8 caracteres)
             </label>
             <input
               id="password"
               name="password"
               type="password"
               required
-              autoComplete="current-password"
+              autoComplete="new-password"
+              minLength={8}
               className="w-full rounded border border-zinc-300 px-3 py-2 text-zinc-900"
             />
           </div>
-          {error ? (
-            <p className="text-sm text-red-600" role="alert">
-              Não foi possível entrar. Verifique email e senha.
-            </p>
-          ) : null}
+          <div>
+            <label
+              htmlFor="organizationName"
+              className="mb-1 block text-sm font-medium text-zinc-700"
+            >
+              Nome da sua loja
+            </label>
+            <input
+              id="organizationName"
+              name="organizationName"
+              type="text"
+              required
+              className="w-full rounded border border-zinc-300 px-3 py-2 text-zinc-900"
+            />
+          </div>
           <button
             type="submit"
             className="rounded bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800"
           >
-            Entrar
+            Criar conta
           </button>
         </form>
         <p className="mt-6 text-center text-sm text-zinc-600">
-          <Link href="/signup" className="text-zinc-900 underline">
-            Não tem conta? Criar conta
+          <Link href="/login" className="text-zinc-900 underline">
+            Já tem conta? Entre aqui
           </Link>
         </p>
       </div>
