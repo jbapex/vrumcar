@@ -259,6 +259,47 @@ E pergunta: **"Que mais tu queria ver?"** até ele esgotar.
 118. "Que relatório tu queria ter no sistema que hoje tu tem que fazer na mão?"
 119. "Tu queria exportar pra Excel? Pra PDF? Mandar por e-mail automático todo dia/semana/mês?"
 
+### Bloco 4.7 — Inteligência artificial (tese do produto)
+
+Este bloco é crítico. O VrumCar tem a IA como pilar, e as respostas aqui vão determinar o que construir primeiro na Fase 2. Pergunta com atenção, porque o lojista médio **não pensa em IA como solução** — ele pensa em problemas. Tua função é mapear os problemas e depois mostrar que a IA resolve.
+
+**Primeiro: escutar os problemas (sem mencionar IA)**
+
+120. "Quantos leads tu acha que tu perde por mês porque ninguém respondeu rápido o suficiente? Chuta."
+121. "Quando um lead chega às 23h pelo WhatsApp, o que acontece? Alguém responde? No outro dia?"
+122. "Tu já perdeu cliente porque ele mandou mensagem tarde da noite, não foi respondido e no dia seguinte comprou em outra loja?"
+123. "Quando entra um lead novo pelo Webmotors, tu sabe na hora se ele é sério ou tá só olhando? Como?"
+124. "Quanto tempo teu vendedor gasta respondendo 'qual o valor?' ou 'o carro ainda tá disponível?' — perguntas que ele já respondeu mil vezes?"
+125. "Tu já teve vendedor escrevendo descrição de anúncio preguiçosa e o carro não vendeu?"
+126. "Quantas conversas o teu vendedor tem abertas ao mesmo tempo em média? Ele consegue lembrar de todas?"
+
+**Depois: introduzir a ideia da IA como assistente**
+
+Agora explica de forma simples:
+
+> "Deixa eu te contar uma coisa. Existe um tipo de IA hoje (tipo o ChatGPT que tu já ouviu falar) que consegue ler uma conversa de WhatsApp, entender o que tá rolando, e sugerir pro vendedor o que responder. Ou responder automaticamente coisas simples, como 'qual horário vocês funcionam?'. O que tu acha disso?"
+
+Espera a reação. Algumas pessoas reagem com entusiasmo, outras com desconfiança. **Anota qual é a reação dele** — se ele é "early adopter" ou "desconfiado". Isso muda como você vai apresentar as features depois.
+
+127. "Se a IA sugerisse resposta pro teu vendedor — tipo, ele lê e aprova antes de enviar — tu usaria? Por que sim ou por que não?"
+128. "Se a IA respondesse automaticamente lead fora do horário comercial (tipo 23h, finais de semana), com informações básicas que tu configurasse (horário, endereço, se o carro tá disponível), tu deixaria ela fazer isso?"
+129. "Que medo tu teria de ter uma IA respondendo cliente em nome da tua loja?"
+
+A pergunta 129 é a mais importante. Se ele falar "tenho medo de falar besteira", essa é a **principal salvaguarda** que o sistema precisa ter. Se ele falar "tenho medo de não soar pessoal", é outro tipo de ajuste. Cada medo vira uma feature de configuração.
+
+130. "Se a IA qualificasse leads automaticamente — fizesse 3-4 perguntas antes de passar pro vendedor humano, tipo 'você tá procurando pra comprar agora ou pesquisando?' — tu acha isso útil ou acha que o cliente ia ficar irritado?"
+131. "Tu pagaria mais caro pelo sistema se ele tivesse IA? Quanto a mais faria sentido?"
+
+A última (131) te dá uma ideia do **valor percebido** da IA. Se ele diz "pago o dobro", IA é grande diferencial. Se diz "não pagaria nada a mais", você precisa posicionar a IA como parte do plano base, não como addon.
+
+### Bloco 4.8 — Canais além do WhatsApp
+
+132. "Além do WhatsApp, por onde mais cliente te procura? Instagram? Facebook? Site próprio? Telefone?"
+133. "Tu queria receber todas essas mensagens num lugar só, pra não ficar abrindo app diferente o dia todo?"
+134. "Quando alguém te manda DM no Instagram, como tu responde hoje? Pelo celular? Pelo computador?"
+135. "Se tu pudesse responder Instagram e Facebook dentro do mesmo sistema que tu usa pro WhatsApp, isso te economizaria tempo?"
+136. "Tu já teve problema de um cliente ter falado contigo em 2 lugares diferentes (tipo WhatsApp e Instagram) e tu não ter percebido que era a mesma pessoa?"
+
 ---
 
 ## PARTE 5 — Coisas que costumam aparecer e ninguém pergunta
@@ -267,39 +308,39 @@ Essas são perguntas que normalmente passam batido mas que mudam muito o sistema
 
 ### Bloco 5.1 — Múltiplas lojas, múltiplos pátios
 
-120. "Tu tem só essa loja ou pensa em ter mais? Filiais?"
-121. "Tem carro em pátio diferente da loja? Como controla qual carro tá onde?"
+137. "Tu tem só essa loja ou pensa em ter mais? Filiais?"
+138. "Tem carro em pátio diferente da loja? Como controla qual carro tá onde?"
 
 ### Bloco 5.2 — Documentação e burocracia
 
-122. "Tu lida com transferência de DETRAN. Como? Tu queria controle disso no sistema?"
-123. "Carro fica 'em transferência' por dias/semanas. Tu queria status pra isso?"
-124. "Quando vende, o cliente espera os documentos chegarem. Como tu acompanha isso?"
-125. "Multas que chegam depois da venda — tu repassa pro comprador. Tu queria ajuda do sistema com isso?"
+139. "Tu lida com transferência de DETRAN. Como? Tu queria controle disso no sistema?"
+140. "Carro fica 'em transferência' por dias/semanas. Tu queria status pra isso?"
+141. "Quando vende, o cliente espera os documentos chegarem. Como tu acompanha isso?"
+142. "Multas que chegam depois da venda — tu repassa pro comprador. Tu queria ajuda do sistema com isso?"
 
 ### Bloco 5.3 — Garantia e devolução
 
-126. "Tu dá garantia nos carros que vende? Que tipo? Quanto tempo?"
-127. "Já teve carro voltando? Como lida com isso?"
-128. "Tu queria registrar garantia no sistema, avisar quando vence?"
+143. "Tu dá garantia nos carros que vende? Que tipo? Quanto tempo?"
+144. "Já teve carro voltando? Como lida com isso?"
+145. "Tu queria registrar garantia no sistema, avisar quando vence?"
 
 ### Bloco 5.4 — Compras e fornecedores
 
-129. "Tu compra carros de quem? Particulares, leilões, repasses entre lojas?"
-130. "Tu queria ter cadastro de 'fornecedores' (lojas parceiras de repasse) no sistema?"
-131. "Já comprou carro com problema de documentação? Tu queria checagem de placa/chassi automática?"
+146. "Tu compra carros de quem? Particulares, leilões, repasses entre lojas?"
+147. "Tu queria ter cadastro de 'fornecedores' (lojas parceiras de repasse) no sistema?"
+148. "Já comprou carro com problema de documentação? Tu queria checagem de placa/chassi automática?"
 
 ### Bloco 5.5 — Marketing
 
-132. "Tu faz tráfego pago? Anúncio no Google, Facebook, Instagram?"
-133. "Como tu sabe se um anúncio tá dando resultado?"
-134. "Tu queria que o sistema rastreasse de qual anúncio veio cada lead?"
+149. "Tu faz tráfego pago? Anúncio no Google, Facebook, Instagram?"
+150. "Como tu sabe se um anúncio tá dando resultado?"
+151. "Tu queria que o sistema rastreasse de qual anúncio veio cada lead?"
 
 ### Bloco 5.6 — Coisas que ele esqueceu
 
 A última pergunta é sempre a mais reveladora:
 
-135. **"Tem alguma coisa do dia a dia da tua loja que o sistema poderia te ajudar e que eu não perguntei?"**
+152. **"Tem alguma coisa do dia a dia da tua loja que o sistema poderia te ajudar e que eu não perguntei?"**
 
 Espera. Silêncio. Insiste. Vai sair coisa importante aqui.
 

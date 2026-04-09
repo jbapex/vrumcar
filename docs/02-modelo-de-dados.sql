@@ -778,7 +778,124 @@ CREATE UNIQUE INDEX idx_webhook_events_source_external ON webhook_events(source,
 CREATE INDEX idx_webhook_events_unprocessed ON webhook_events(source, created_at) WHERE processed = false;
 
 -- =====================================================================
--- 14. CACHE FIPE (compartilhado entre tenants)
+-- 14. INTELIGÊNCIA ARTIFICIAL (assistente, auto-resposta, qualificação)
+-- =====================================================================
+
+CREATE TYPE ai_feature AS ENUM (
+  'SUGGEST_REPLY',           -- Nível 1: sugerir resposta ao vendedor
+  'GENERATE_DESCRIPTION',    -- Nível 1: gerar descrição de anúncio
+  'SUMMARIZE_CONVERSATION',  -- Nível 1: resumir conversa
+  'EXTRACT_LEAD_DATA',       -- Nível 1: extrair dados do lead de texto livre
+  'AUTO_REPLY',              -- Nível 2: responder automaticamente fora do horário
+  'QUALIFY_LEAD',            -- Nível 3: qualificar lead novo com perguntas
+  'FOLLOWUP_AGENT'           -- Nível 4: agente de follow-up autônomo
+);
+
+CREATE TYPE ai_execution_status AS ENUM (
+  'PENDING', 'RUNNING', 'SUCCESS', 'FAILED', 'CANCELED', 'REJECTED_BY_HUMAN'
+);
+
+-- Configuração de IA por organização (quais features estão ativas, tom, etc)
+CREATE TABLE ai_settings (
+  id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id     UUID NOT NULL UNIQUE REFERENCES organizations(id) ON DELETE CASCADE,
+  -- Features habilitadas
+  enabled_features    ai_feature[] NOT NULL DEFAULT '{}',
+  -- Configuração geral
+  tone                TEXT NOT NULL DEFAULT 'casual',  -- casual, formal, friendly
+  signature           TEXT,                             -- "Assistente virtual da [Loja]"
+  -- Auto-reply (Nível 2) específico
+  auto_reply_enabled  BOOLEAN NOT NULL DEFAULT false,
+  auto_reply_schedule JSONB,                            -- {weekdays: '19:00-08:00', weekends: 'all_day'}
+  auto_reply_delay_s  INT NOT NULL DEFAULT 120,         -- espera N segundos antes de IA responder
+  -- Limites / custos
+  monthly_budget_cents INT,                             -- gasto máximo por mês (null = sem limite)
+  created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at          TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Base de conhecimento da loja (usada como contexto pela IA)
+CREATE TABLE ai_knowledge_base (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  category        TEXT NOT NULL,    -- 'hours', 'address', 'payment', 'financing', 'warranty', 'about', 'custom'
+  title           TEXT NOT NULL,
+  content         TEXT NOT NULL,    -- texto livre que vira contexto pro prompt
+  is_active       BOOLEAN NOT NULL DEFAULT true,
+  priority        INT NOT NULL DEFAULT 0,  -- ordem de relevância
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_ai_kb_org_category ON ai_knowledge_base(organization_id, category) WHERE is_active = true;
+
+-- Prompts customizáveis por feature (cada org pode ajustar o prompt base)
+CREATE TABLE ai_prompts (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  feature         ai_feature NOT NULL,
+  system_prompt   TEXT NOT NULL,
+  model           TEXT NOT NULL DEFAULT 'claude-haiku-4-5',
+  temperature     NUMERIC(3,2) NOT NULL DEFAULT 0.7,
+  max_tokens      INT NOT NULL DEFAULT 1024,
+  is_default      BOOLEAN NOT NULL DEFAULT false,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE(organization_id, feature, is_default)
+);
+
+-- Log de toda execução de IA (pra auditoria, debug, billing e melhoria de prompts)
+CREATE TABLE ai_executions (
+  id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id     UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  feature             ai_feature NOT NULL,
+  status              ai_execution_status NOT NULL DEFAULT 'PENDING',
+  -- Contexto
+  lead_id             UUID REFERENCES leads(id),
+  conversation_id     UUID REFERENCES conversations(id),
+  message_id          UUID REFERENCES messages(id),
+  vehicle_id          UUID REFERENCES vehicles(id),
+  triggered_by_user_id UUID REFERENCES users(id),  -- null se automação
+  -- Request
+  model               TEXT NOT NULL,
+  system_prompt       TEXT,
+  user_prompt         TEXT,
+  context_payload     JSONB,
+  -- Response
+  response_text       TEXT,
+  response_payload    JSONB,
+  -- Métricas e custos
+  input_tokens        INT,
+  output_tokens       INT,
+  cost_cents          INT,
+  latency_ms          INT,
+  -- Feedback humano (quando aplicável)
+  accepted_by_human   BOOLEAN,
+  human_edited        TEXT,               -- se o humano editou antes de enviar, guarda o resultado final
+  rejected_reason     TEXT,
+  -- Erro
+  error               TEXT,
+  created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+  completed_at        TIMESTAMPTZ
+);
+
+CREATE INDEX idx_ai_exec_org_feature ON ai_executions(organization_id, feature, created_at DESC);
+CREATE INDEX idx_ai_exec_conversation ON ai_executions(conversation_id, created_at DESC) WHERE conversation_id IS NOT NULL;
+CREATE INDEX idx_ai_exec_lead ON ai_executions(lead_id, created_at DESC) WHERE lead_id IS NOT NULL;
+CREATE INDEX idx_ai_exec_org_created ON ai_executions(organization_id, created_at DESC);
+
+-- Regras de salvaguarda (o que a IA NÃO pode fazer) por organização
+CREATE TABLE ai_guardrails (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  feature         ai_feature NOT NULL,
+  rule            TEXT NOT NULL,    -- "nunca prometer desconto", "nunca afirmar disponibilidade sem checar estoque"
+  is_active       BOOLEAN NOT NULL DEFAULT true,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- =====================================================================
+-- 15. CACHE FIPE (compartilhado entre tenants)
 -- =====================================================================
 
 CREATE TABLE fipe_brands (
@@ -809,7 +926,7 @@ CREATE TABLE fipe_prices (
 );
 
 -- =====================================================================
--- 15. TRIGGERS — updated_at automático
+-- 16. TRIGGERS — updated_at automático
 -- =====================================================================
 
 CREATE OR REPLACE FUNCTION trigger_set_updated_at()
@@ -836,7 +953,7 @@ BEGIN
 END $$;
 
 -- =====================================================================
--- 16. ROW LEVEL SECURITY
+-- 17. ROW LEVEL SECURITY
 -- =====================================================================
 -- A aplicação seta SET app.current_org_id = '<uuid>' no início de cada
 -- transação. As policies abaixo garantem isolamento mesmo se o código
@@ -860,7 +977,8 @@ DECLARE tables TEXT[] := ARRAY[
   'listing_channels', 'listings', 'listing_sync_logs',
   'banks', 'finance_simulations', 'finance_proposals',
   'sales', 'contracts', 'contract_templates', 'commissions',
-  'invoices', 'audit_logs'
+  'invoices', 'audit_logs',
+  'ai_settings', 'ai_knowledge_base', 'ai_prompts', 'ai_executions', 'ai_guardrails'
 ];
 DECLARE t TEXT;
 BEGIN

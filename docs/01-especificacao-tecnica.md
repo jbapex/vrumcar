@@ -1,12 +1,48 @@
-# CRM Automotivo SaaS — Especificação Técnica
+# VrumCar CRM — Especificação Técnica
 
 > Documento mestre. Stack, arquitetura, módulos e integrações de um CRM multi-tenant para lojas de automóveis, projetado desde o início para virar SaaS.
 
 ---
 
+## 0. Tese do produto
+
+**O VrumCar existe para dobrar o faturamento de lojas de automóveis.**
+
+Isso não acontece por causa de telas bonitas ou relatórios completos. Acontece porque o sistema **captura, responde e acompanha cada lead com uma consistência que nenhum vendedor humano consegue**.
+
+As 6 alavancas de faturamento que o produto ataca, em ordem de impacto:
+
+1. **Resposta imediata a lead novo** — estudos mostram que responder em menos de 5 minutos converte 9x mais que responder em 1 hora. O sistema garante isso via notificações agressivas, escalonamento automático pro próximo vendedor, e IA que responde quando ninguém tá disponível.
+
+2. **Follow-up que nunca esquece** — vendedor humano esquece, IA não. Lead parado há 24h, 3 dias, 7 dias, 30 dias → régua automática que tenta reativar com mensagens personalizadas.
+
+3. **Inbox unificado multi-canal** — WhatsApp direto + WhatsApp de portais + Instagram Direct + Messenger + portais web tudo num lugar só. Vendedor não precisa abrir 7 apps. Nada se perde.
+
+4. **Gestão inteligente de estoque** — carros parados geram alerta automático. Carros novos são divulgados automaticamente pra leads compatíveis ("entrou um Civic 2020, mandar pra todos que demonstraram interesse em Civic nos últimos 6 meses").
+
+5. **Visibilidade da performance da equipe** — dono vê em tempo real quem tá respondendo rápido, quem tá deixando lead esfriar, quem converte mais. Isso sozinho aumenta produtividade da equipe em 20-30%.
+
+6. **Financiamento e propostas rápidos** — simulação multi-banco em segundos, proposta em PDF bonito pelo WhatsApp, acompanhamento automático de status. Reduz tempo de fechamento de dias pra horas.
+
+**Tudo que for construído precisa servir uma dessas 6 alavancas.** Se uma feature não serve, ela não entra no MVP — entra no backlog ou é cortada.
+
+### IA como pilar, não como enfeite
+
+Diferente de CRMs genéricos que tratam IA como "feature extra", no VrumCar a IA é **central**. Cinco níveis de IA estão mapeados no produto:
+
+- **Nível 1 — Assistente do vendedor**: sugerir resposta, gerar descrição de anúncio, resumir conversa. (Fase 2)
+- **Nível 2 — Resposta automática fora do horário**: IA responde leads que chegam às 23h com informações básicas e encaminha pra humano de manhã. (Fase 2.5)
+- **Nível 3 — Qualificação automática de leads novos**: IA faz 3-4 perguntas pra entender se o lead é sério antes de passar pro vendedor. (Fase 2)
+- **Nível 4 — Agente autônomo de follow-up**: agente que decide sozinho quando abordar leads frios e com qual mensagem. (Fase 3)
+- **Nível 5 — IA que navega o sistema**: conversar com o CRM pra pedir relatórios, criar registros, etc. (v2+, futuro)
+
+Cada nível é opcional por plano (Starter não tem IA, Pro tem níveis 1 e 3, Enterprise tem tudo). Isso cria diferenciação de plano que justifica preços maiores.
+
+---
+
 ## 1. Visão geral
 
-CRM web multi-tenant para lojas de veículos seminovos/usados. Cada **organização** (loja) tem seus próprios usuários, estoque, leads, anúncios, integrações e billing. O sistema cobre todo o ciclo: captação de lead → qualificação → test drive → proposta → financiamento → venda → emissão fiscal → pós-venda.
+CRM web multi-tenant para lojas de veículos seminovos/usados. Cada **organização** (loja) tem seus próprios usuários, estoque, leads, anúncios, integrações e billing. O sistema cobre todo o ciclo: captação de lead → qualificação (com IA) → resposta imediata → follow-up automático → test drive → proposta → financiamento → venda → emissão fiscal → pós-venda com régua de relacionamento.
 
 ### Princípios de design
 
@@ -172,37 +208,244 @@ Tabela separada `platform_admins` (usuários da Anthropic — quer dizer, sua em
 - Lembretes automáticos via WhatsApp 24h antes e 1h antes.
 - Check-in / check-out de test drive com registro de KM, hora e (opcional) foto da CNH do cliente.
 
-### 4.6 Automações
+### 4.6 Automações (o coração do "dobrar faturamento")
 
 **Entidades:** `Automation`, `AutomationTrigger`, `AutomationAction`, `AutomationRun`.
 
-Motor de automações estilo Zapier interno. Triggers e actions tipados.
+Motor de automações estilo Zapier interno. **Esta é a feature mais importante do produto** — é onde as alavancas 1, 2 e 6 da tese do produto são executadas.
 
 **Triggers:**
 - `lead.created` (com filtros: origem = X, veículo de interesse contém Y)
 - `lead.stage_changed` (de A para B)
-- `lead.no_response_for` (X horas sem resposta)
+- `lead.no_response_for` (X horas sem resposta do vendedor)
+- `lead.customer_no_response_for` (X horas sem resposta do cliente)
+- `lead.cold` (N dias inativo)
 - `vehicle.created`
 - `vehicle.price_changed`
+- `vehicle.stuck_in_stock` (parado há mais de X dias)
 - `appointment.scheduled`
 - `appointment.no_show`
+- `appointment.completed`
 - `deal.won` / `deal.lost`
-- `cron` (todo dia às X horas)
+- `sale.completed` (pra régua pós-venda)
+- `customer.birthday`
+- `customer.purchase_anniversary` (1 ano da compra, 2 anos, etc)
+- `cron` (agendado: todo dia às X, toda segunda às Y)
 
 **Actions:**
-- Enviar mensagem WhatsApp (template ou texto livre)
+- Enviar mensagem WhatsApp (template HSM ou texto livre)
+- Enviar mensagem Instagram / Messenger
 - Enviar e-mail
-- Criar tarefa pra vendedor
+- Criar tarefa pro vendedor ("ligar pra fulano")
+- Escalonar lead (reatribuir pra outro vendedor / gerente)
+- Notificar dono (push + WhatsApp no número pessoal)
 - Mudar etapa do deal
 - Atribuir a vendedor
 - Adicionar/remover tag
 - Chamar webhook externo
 - Esperar X tempo (delay)
-- Condicional (if/else)
+- Condicional (if/else baseado em dados do lead)
+- **Chamar IA** (nível 1-3) pra gerar mensagem personalizada
 
-**UI:** editor visual de fluxo (React Flow) com nós conectáveis. MVP pode ser formulário simples.
+**UI:** editor visual de fluxo (React Flow). MVP pode ser formulário simples.
 
-### 4.7 Anúncios e portais
+### Automações pré-configuradas (templates prontos)
+
+Ao criar uma organização, essas automações já vêm instaladas e ativas (o cliente pode desativar se quiser):
+
+**1. Resposta imediata a lead novo**
+- Trigger: `lead.created`
+- Action 1: notifica vendedor atribuído (push + som no app)
+- Action 2 (se `lead.no_response_for` 5min): notifica outro vendedor
+- Action 3 (se `lead.no_response_for` 15min): alerta pro dono + aciona IA Nível 2 (responder automaticamente enquanto humano não aparece)
+
+**2. Follow-up de lead sem resposta do cliente**
+- Trigger: `lead.customer_no_response_for` 24h (cliente viu a mensagem e não respondeu)
+- Action: manda mensagem 1 ("oi fulano, tudo bem? ainda tá interessado no {modelo}?")
+
+**3. Follow-up de lead frio 3 dias**
+- Trigger: `lead.customer_no_response_for` 72h
+- Action: IA Nível 1 gera mensagem personalizada baseada no histórico
+
+**4. Follow-up de lead frio 7 dias**
+- Trigger: `lead.customer_no_response_for` 168h
+- Action: manda mensagem 3 (tentativa final de recuperação, oferta especial)
+
+**5. Lead frio 15 dias → arquiva**
+- Trigger: `lead.customer_no_response_for` 360h
+- Action: marca lead como `LOST`, move pra lista de reativação futura
+
+**6. Alerta de carro parado**
+- Trigger: `vehicle.stuck_in_stock` 60 dias
+- Action: notifica dono ("o {marca} {modelo} tá parado há 60 dias, considerar baixar preço ou mover pra outro canal")
+
+**7. Divulgação automática de carro novo**
+- Trigger: `vehicle.created`
+- Action: busca leads que demonstraram interesse no mesmo modelo/marca nos últimos 6 meses, manda WhatsApp "acabou de chegar um {modelo} que tem tua cara, quer ver?"
+
+**8. Régua pós-venda**
+- Trigger: `sale.completed` + delay 3d / 30d / 90d / 180d / 365d
+- Action: mensagens progressivas ("tudo bem com o carro?", "primeira revisão", "aniversário de 1 ano", etc)
+
+**9. Aniversário do cliente**
+- Trigger: `customer.birthday`
+- Action: mensagem de parabéns personalizada
+
+**10. Reativação de cliente pós 2 anos**
+- Trigger: `customer.purchase_anniversary` 2 anos
+- Action: "oi fulano, tá na hora de trocar de carro? tenho algumas opções interessantes"
+
+**Tudo isso é configurável e desativável por organização.** Clientes mais simples podem usar só essas 10. Clientes avançados criam automações customizadas.
+
+---
+
+### 4.7 Inbox unificado multi-canal
+
+**Entidades:** `Channel`, `ChannelInstance`, `Conversation`, `Message`, `MessageTemplate`.
+
+Esta é a **alavanca 3** da tese do produto. Consolidar todos os canais de atendimento num inbox só elimina o caos de abrir 7 apps diferentes.
+
+**Canais suportados** (em ordem de prioridade de implementação):
+
+| Canal | Como conecta | Fase |
+|---|---|---|
+| WhatsApp via uazapi | Token por instância | Fase 1 |
+| WhatsApp Cloud API (Meta) | phone_number_id + access_token | Fase 2 |
+| WhatsApp via Evolution self-hosted | API key + instance name | Fase 2 |
+| Instagram Direct | OAuth Meta Business (junto com Cloud API) | Fase 2.5 |
+| Facebook Messenger | OAuth Meta Business (junto com Cloud API) | Fase 2.5 |
+| Webmotors (mensagens internas) | API parceiro | Fase 3 |
+| OLX (mensagens internas) | API parceiro | Fase 3 |
+| Mercado Livre Veículos | API pública | Fase 2 |
+| iCarros (mensagens internas) | Parser de email ou API | Fase 3 |
+| E-mail | SMTP inbound | Fase 3 |
+
+**Funcionalidades do inbox:**
+
+- **Inbox unificado** estilo WhatsApp Web, com TODOS os canais misturados
+- Cada conversa mostra ícone do canal de origem
+- Filtros por canal, vendedor, status, tags
+- Cada vendedor vê suas conversas + as não atribuídas; gerentes veem tudo
+- **Timeline unificada por cliente**: quando o cliente Fulano mandou mensagem pelo WhatsApp em janeiro, comentário no anúncio da OLX em março, e DM no Instagram em maio, tudo aparece numa única timeline ordenada por data
+- Envio de mídia: fotos, vídeos, áudio, PDF, localização
+- **Atalhos rápidos**: respostas pré-prontas configuráveis pela equipe
+- **Encaminhamento** entre vendedores/gerentes
+- **Tags em conversa** e vinculação automática a lead/deal
+- **Notificação agressiva** de nova mensagem (som + push + badge)
+- **Tempo de resposta visível**: cada conversa mostra "há 3 minutos", "há 2 horas", e colorido de vermelho se passou do SLA configurado
+
+**Unificação de cliente cross-canal:**
+Quando uma mensagem chega pelo Instagram com o username `@fulano_silva`, o sistema tenta identificar se é o mesmo `Fulano Silva` que já tem lead no sistema via WhatsApp. Isso é feito por:
+- Matching de número de telefone (se o lead já tem telefone salvo)
+- Matching manual (botão "esse é o Fulano Silva que já existe?")
+- IA de matching (futuro, Fase 3+)
+
+---
+
+### 4.8 IA assistente e automação inteligente
+
+**Entidades:** `AiPrompt`, `AiExecution`, `AiKnowledgeBase`, `AiContext`.
+
+Esta é a **grande diferenciação** do VrumCar em relação a CRMs genéricos como Kommo. A IA está integrada ao fluxo de trabalho, não é um chatbot solto.
+
+#### Nível 1 — Assistente do vendedor (Fase 2)
+
+Botões dentro do inbox e do cadastro de veículo:
+
+- **"Sugerir resposta"**: olha as últimas 20 mensagens da conversa + dados do lead + carro de interesse + estoque atual → chama Claude API → retorna 2-3 sugestões de resposta. Vendedor escolhe uma, edita se quiser, envia.
+- **"Gerar descrição do anúncio"**: pega dados do veículo (marca, modelo, ano, opcionais, KM, etc) → Claude API → retorna texto pronto pra anúncio nos portais. Vendedor revisa e aprova.
+- **"Resumir conversa"**: pega 50+ mensagens e gera resumo de 3 linhas com os pontos principais. Útil pra gerente entender rápido uma conversa longa.
+- **"Extrair dados do lead"**: lead mandou mensagem contando várias coisas ("tenho um Gol 2015, quero trocar por um sedan, posso dar 15 mil de entrada"). IA extrai e preenche automaticamente os campos do lead (tem carro pra troca, entrada, interesse, etc).
+
+**Custo**: ~R$ 0,10-0,30 por execução (Claude Haiku pros simples, Sonnet pros complexos).
+
+#### Nível 2 — Resposta automática fora do horário (Fase 2.5)
+
+**A feature mais ambiciosa do produto.** Quando um lead chega às 23h e ninguém responde, a IA responde automaticamente com informações básicas, mantém o lead engajado, e de manhã passa a conversa pro vendedor humano.
+
+**Funcionamento:**
+1. Lead manda mensagem fora do horário comercial (configurável: ex. "das 19h às 8h, e finais de semana")
+2. Sistema aguarda 2 minutos pra ver se vendedor responde (às vezes tá respondendo mesmo fora do horário)
+3. Se não responder, aciona IA com contexto: histórico da conversa + estoque disponível + políticas da loja + base de conhecimento configurada
+4. IA responde com tom configurado (formal/casual/etc)
+5. IA sabe quando **não** responder e encaminha: "deixa eu confirmar isso com o vendedor responsável, ele te responde amanhã cedo"
+6. Conversa fica marcada com flag `ai_handled` pra vendedor humano saber o que aconteceu
+7. De manhã, vendedor vê no inbox as conversas que a IA cuidou à noite
+
+**Salvaguardas obrigatórias:**
+- IA **nunca** fala preço que não tá no estoque (evita dar informação errada)
+- IA **nunca** promete nada que exige aprovação (desconto, financiamento especial, etc)
+- IA **nunca** afirma disponibilidade de carro sem checar o estoque em tempo real
+- IA **sempre** se identifica como assistente: "Oi! Sou o assistente virtual da [Loja]. Posso te ajudar com informações básicas enquanto o vendedor está fora"
+- Cliente pode digitar "quero falar com humano" → encaminha imediatamente
+- Todas as respostas da IA ficam logadas pra auditoria
+
+**Base de conhecimento configurável pela loja:**
+- Horário de funcionamento
+- Endereço e mapa
+- Políticas de financiamento (bancos parceiros, condições típicas)
+- Formas de pagamento aceitas
+- Política de troca e garantia
+- Textos institucionais ("sobre a loja", "diferenciais")
+
+**Custo**: ~R$ 0,30-1 por conversa (depende do tamanho). Vale MUITO a pena — recuperar 1 venda perdida paga 100 conversas da IA.
+
+#### Nível 3 — Qualificação automática de leads (Fase 2)
+
+Quando chega um lead novo, a IA faz 3-4 perguntas pra qualificar antes de passar pro vendedor. Isso filtra curiosos e deixa vendedor focado em leads sérios.
+
+**Exemplo de fluxo**:
+1. Lead: "Oi, quero saber do Civic 2020"
+2. IA: "Oi! Sou a assistente da [Loja]. Pra te ajudar melhor, tá procurando pra comprar agora ou tá pesquisando?"
+3. Lead: "Tô pesquisando ainda"
+4. IA: "Entendi. Tem prazo em mente? Semanas, meses?"
+5. Lead: "Uns 2 meses"
+6. IA: "Tem um carro atual pra dar de entrada ou prefere sem troca?"
+7. Lead: "Sem troca, vou financiar"
+8. IA: "Perfeito! Tá pensando em qual valor de entrada, mais ou menos?"
+9. Lead: "Uns 20 mil"
+10. IA: "Ótimo! Vou passar pra nossa equipe, alguém te responde agora com opções. Enquanto isso, aqui tá o link com as fotos do Civic 2020 que temos: [link]"
+
+O lead já chega pro vendedor **pré-qualificado**: sabe-se que é financiamento, 20k de entrada, prazo 2 meses. Vendedor já começa direto no pitch certo.
+
+**Configurável por loja:** quantas perguntas, quais perguntas, quando acionar, quando pular direto pro humano.
+
+#### Nível 4 — Agente de follow-up autônomo (Fase 3)
+
+Agente em background que olha leads parados e decide **sozinho**:
+- Quando abordar (horário apropriado, não em madrugada ou domingo)
+- Que mensagem mandar (personalizada baseada no que foi conversado antes)
+- Quando desistir (parar de tentar depois de N tentativas)
+
+Usa mesmo princípio de salvaguardas do Nível 2. Pode ser desligado a qualquer momento.
+
+#### Nível 5 — IA conversacional que opera o CRM (v2+)
+
+Futuro distante. Exemplo: "Claude, quantos Civics vendi esse mês?" e ela navega o sistema e responde. Não faz parte do roadmap inicial.
+
+---
+
+### 4.9 Dashboard de resposta em tempo real
+
+**Entidade:** usa dados de `Conversation` e `Lead` existentes.
+
+Tela especial que o **dono** olha várias vezes ao dia. Mostra:
+
+- **Leads aguardando primeira resposta** (tempo decorrido em vermelho se passou do SLA)
+- **Conversas abertas por vendedor** (quem tem quantas)
+- **Tempo médio de resposta de cada vendedor** (últimas 24h, 7 dias, 30 dias)
+- **Leads sem resposta há mais de X horas** (configurável, default 2h)
+- **Taxa de resposta em 5min / 15min / 1h**
+- **Ranking de vendedores** por tempo de resposta e taxa de conversão
+
+**Alertas em tempo real:**
+- "⚠️ Lead do Webmotors há 12 minutos sem resposta"
+- "⚠️ Vendedor João com 8 conversas abertas, média de resposta 45min (acima do SLA)"
+- "🔥 Lead quente (IA Nível 3 qualificou como pronto pra comprar) atribuído ao Carlos — não deixar esfriar"
+
+Esta tela sozinha **muda o comportamento da equipe** porque torna invisível o que antes era invisível. Vendedor que antes "esquecia" de responder passa a responder porque sabe que o dono tá vendo.
+
+### 4.10 Anúncios e portais
 
 **Entidades:** `Listing`, `ListingChannel`, `ListingSyncLog`.
 
@@ -211,7 +454,7 @@ Motor de automações estilo Zapier interno. Triggers e actions tipados.
 - Dashboard mostra status de cada anúncio por veículo: ativo, expirado, com erro.
 - Leads vindos de portal entram automaticamente via webhook do canal.
 
-### 4.8 Financiamento e simulação
+### 4.11 Financiamento e simulação
 
 **Entidades:** `FinanceSimulation`, `FinanceProposal`, `Bank`.
 
@@ -221,7 +464,7 @@ Motor de automações estilo Zapier interno. Triggers e actions tipados.
 - Status da proposta: `EM_ANALISE`, `APROVADA`, `REPROVADA`, `CONTRATADA`.
 - Webhook das financeiras (quando disponível) atualiza status automaticamente.
 
-### 4.9 Vendas e contratos
+### 4.12 Vendas e contratos
 
 **Entidades:** `Sale`, `Contract`, `Commission`.
 
@@ -230,7 +473,7 @@ Motor de automações estilo Zapier interno. Triggers e actions tipados.
 - Cálculo automático de comissão por regra: % fixo, escalonado por meta, etc.
 - Vinculação à NF-e (módulo 4.10).
 
-### 4.10 Fiscal (NF-e)
+### 4.13 Fiscal (NF-e)
 
 **Entidades:** `Invoice`, `InvoiceItem`.
 
@@ -240,21 +483,23 @@ Motor de automações estilo Zapier interno. Triggers e actions tipados.
 - Cancelamento e carta de correção via interface.
 - **Importante**: cada organização precisa subir seu próprio certificado A1 (criptografado no banco com chave da aplicação).
 
-### 4.11 Pós-venda
+### 4.14 Pós-venda (régua de relacionamento)
+
+Esta seção virou parte das **automações pré-configuradas** (ver 4.6). Resumindo o que entra:
 
 - Régua de relacionamento automática: mensagem 7 dias após venda, 30 dias, 90 dias, aniversário, aniversário do veículo.
 - Pesquisa NPS automatizada.
 - Lembretes de manutenção / revisão.
 - Reativação de leads frios (ex: 60 dias sem interação → automação).
 
-### 4.12 Relatórios e BI
+### 4.15 Relatórios e BI
 
 - **Dashboard principal**: leads do mês, conversão por etapa, ticket médio, lucro bruto, vendedor do mês, veículos parados há mais de 60 dias.
 - **Relatórios específicos**: funil de vendas, performance por vendedor, performance por origem de lead, tempo médio em cada etapa, giro de estoque.
 - Exportação CSV/Excel.
 - Filtros por período, vendedor, origem, marca/modelo.
 
-### 4.13 Configurações da organização
+### 4.16 Configurações da organização
 
 - Dados da loja, logo, CNPJ, endereço.
 - Usuários e papéis.
@@ -266,7 +511,7 @@ Motor de automações estilo Zapier interno. Triggers e actions tipados.
 - Automações.
 - Plano e billing.
 
-### 4.14 Painel de plataforma (super-admin SaaS)
+### 4.17 Painel de plataforma (super-admin SaaS)
 
 Rota `/platform`, acessível apenas a `platform_admins`.
 
@@ -556,8 +801,15 @@ SENTRY_DSN="..."
 RESEND_API_KEY="..."
 EMAIL_FROM="noreply@seudominio.com"
 
-# AI (opcional)
+# AI (Claude API) — pilar do produto, não opcional
 ANTHROPIC_API_KEY="..."
+AI_DEFAULT_MODEL="claude-sonnet-4-6"
+AI_BUDGET_MODEL="claude-haiku-4-5"  # pra tarefas simples (sugestão de resposta, extração)
+
+# Meta Business (WhatsApp Cloud + Instagram + Messenger, tudo no mesmo OAuth)
+META_APP_ID="..."
+META_APP_SECRET="..."
+META_WEBHOOK_VERIFY_TOKEN="..."
 ```
 
 ---
