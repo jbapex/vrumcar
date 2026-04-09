@@ -24,8 +24,11 @@ export async function signupAction(formData: FormData) {
     );
   }
 
+  let orgSlug: string;
+
   try {
-    await createOrganizationWithOwner(parsed.data);
+    const { organization } = await createOrganizationWithOwner(parsed.data);
+    orgSlug = organization.slug;
   } catch (e) {
     unstable_rethrow(e);
     if (e instanceof ConflictError) {
@@ -42,7 +45,7 @@ export async function signupAction(formData: FormData) {
     await signIn('credentials', {
       email: parsed.data.email,
       password: parsed.data.password,
-      redirectTo: '/dashboard',
+      redirectTo: `/${orgSlug}/dashboard`,
     });
   } catch (e) {
     unstable_rethrow(e);
