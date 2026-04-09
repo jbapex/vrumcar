@@ -1,3 +1,6 @@
+// LEGACY: este botão foi substituído pelo RegisterSaleDialog.
+// Mantido pra não quebrar imports, mas não é mais usado na UI.
+
 'use client';
 
 import { useTransition } from 'react';

@@ -12,6 +12,7 @@ import {
   LayoutDashboard,
   MessageSquare,
   Settings,
+  ShoppingCart,
   Users,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -27,6 +28,7 @@ const navIcons = {
   Car,
   Users,
   Contact,
+  ShoppingCart,
   Kanban,
   MessageSquare,
   Calendar,
@@ -47,6 +49,7 @@ function buildItems(orgSlug: string): NavDef[] {
     { href: `${p}/vehicles`, icon: 'Car', label: 'Estoque' },
     { href: `${p}/leads`, icon: 'Users', label: 'Leads' },
     { href: `${p}/customers`, icon: 'Contact', label: 'Clientes' },
+    { href: `${p}/sales`, icon: 'ShoppingCart', label: 'Vendas' },
     { href: `${p}/pipeline`, icon: 'Kanban', label: 'Funil' },
     { href: `${p}/inbox`, icon: 'MessageSquare', label: 'Atendimento' },
     { href: `${p}/calendar`, icon: 'Calendar', label: 'Agenda' },

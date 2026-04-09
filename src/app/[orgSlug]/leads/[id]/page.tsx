@@ -1,12 +1,12 @@
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { ConvertToCustomerButton } from '@/components/leads/convert-to-customer-button';
 import { DeleteLeadButton } from '@/components/leads/delete-lead-button';
 import { EditLeadForm } from '@/components/leads/edit-lead-form';
 import { LeadStatusSelect } from '@/components/leads/lead-status-select';
 import { LeadTimeline } from '@/components/leads/lead-timeline';
 import { LeadPriorityBadge } from '@/components/leads/priority-badge';
 import { LeadStatusBadge } from '@/components/leads/status-badge';
+import { RegisterSaleDialog } from '@/components/sales/register-sale-dialog';
 import { buttonVariants } from '@/components/ui/button';
 import { getLeadById } from '@/modules/leads/service';
 import Link from 'next/link';
@@ -102,6 +102,35 @@ export default async function LeadDetailPage({
     notFound();
   }
 
+  const [salesPeople, availableVehicles] = await Promise.all([
+    prisma.user.findMany({
+      where: {
+        memberships: {
+          some: { organizationId: org.id, isActive: true },
+        },
+      },
+      select: { id: true, name: true, email: true },
+      orderBy: { name: 'asc' },
+    }),
+    prisma.vehicle.findMany({
+      where: {
+        organizationId: org.id,
+        deletedAt: null,
+        status: { notIn: ['SOLD', 'INACTIVE'] },
+      },
+      select: {
+        id: true,
+        brand: true,
+        model: true,
+        year: true,
+        salePriceCents: true,
+        status: true,
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+    }),
+  ]);
+
   const creatorIds = [
     ...new Set(
       lead.interactions
@@ -156,11 +185,17 @@ export default async function LeadDetailPage({
             leadId={lead.id}
             current={lead.status}
           />
-          <ConvertToCustomerButton
-            orgSlug={orgSlug}
-            leadId={lead.id}
-            disabled={hasCustomer}
-          />
+          {lead.status !== 'WON' && lead.status !== 'LOST' ? (
+            <RegisterSaleDialog
+              orgSlug={orgSlug}
+              leadId={lead.id}
+              currentUserId={session.user.id}
+              defaultVehicle={lead.interestVehicle ?? null}
+              availableVehicles={availableVehicles}
+              salesPeople={salesPeople}
+              leadName={lead.name}
+            />
+          ) : null}
           <DeleteLeadButton orgSlug={orgSlug} leadId={lead.id} />
           <Link
             href={`/${orgSlug}/leads`}
