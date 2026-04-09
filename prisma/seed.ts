@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
@@ -61,6 +62,24 @@ async function main() {
       },
     });
   }
+
+  const adminEmail = 'admin@vrumcar.local';
+  const passwordHash = await bcrypt.hash('admin123', 12);
+  await prisma.user.upsert({
+    where: { email: adminEmail },
+    create: {
+      email: adminEmail,
+      name: 'Admin Teste',
+      passwordHash,
+      emailVerified: new Date(),
+    },
+    update: {
+      name: 'Admin Teste',
+      passwordHash,
+      emailVerified: new Date(),
+    },
+  });
+  console.log('✅ Test user: admin@vrumcar.local / admin123');
 }
 
 main()

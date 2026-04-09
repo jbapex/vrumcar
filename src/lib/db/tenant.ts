@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- Prisma $extends query extension args */
 import { prisma } from './index';
 
 /** Models com `organizationId` escopados pelo tenant helper. */
@@ -52,7 +53,7 @@ async function assertBelongsToTenant(
     throw new TenantNotFoundError(model, where);
   }
   const scopedWhere = mergeTenantWhereInput(where, organizationId);
-  const delegate = prisma[model] as {
+  const delegate = prisma[model] as unknown as {
     findFirst: (args: { where: Record<string, unknown> }) => Promise<unknown>;
   };
   const found = await delegate.findFirst({ where: scopedWhere });
@@ -154,7 +155,7 @@ function tenantModelExtension(
      */
     async upsert({ args, query }: any) {
       const where = args.where as Record<string, unknown>;
-      const delegate = prisma[model] as {
+      const delegate = prisma[model] as unknown as {
         findFirst: (args: {
           where: Record<string, unknown>;
         }) => Promise<{ organizationId: string } | null>;
