@@ -1,6 +1,11 @@
 import type { Prisma, Vehicle, VehicleCost } from '@prisma/client';
 import { prisma } from '@/lib/db';
 import { getTenantPrisma } from '@/lib/db/tenant';
+import {
+  uploadBuffer,
+  deleteObject,
+  generateStorageKey,
+} from '@/lib/storage/upload';
 import type {
   CreateVehicleInput,
   UpdateVehicleInput,
@@ -285,4 +290,133 @@ export async function updateVehicleStatus(
     where: { id: vehicleId },
     data: { status, updatedBy: userId },
   });
+}
+
+// ========== FOTOS ==========
+
+export async function addVehiclePhoto(
+  organizationId: string,
+  vehicleId: string,
+  file: {
+    buffer: Buffer;
+    mimeType: string;
+    originalName: string;
+    sizeBytes: number;
+  },
+) {
+  const db = getTenantPrisma(organizationId);
+
+  const vehicle = await db.vehicle.findFirst({
+    where: { id: vehicleId, deletedAt: null },
+  });
+  if (!vehicle) throw new Error('Vehicle not found');
+
+  const key = generateStorageKey({
+    organizationId,
+    vehicleId,
+    originalName: file.originalName,
+  });
+  const { url } = await uploadBuffer({
+    key,
+    buffer: file.buffer,
+    contentType: file.mimeType,
+  });
+
+  const last = await db.vehiclePhoto.findFirst({
+    where: { vehicleId },
+    orderBy: { order: 'desc' },
+  });
+  const nextOrder = (last?.order ?? -1) + 1;
+
+  const countExisting = await db.vehiclePhoto.count({ where: { vehicleId } });
+  const isCover = countExisting === 0;
+
+  return db.vehiclePhoto.create({
+    data: {
+      organizationId,
+      vehicleId,
+      url,
+      storageKey: key,
+      order: nextOrder,
+      isCover,
+      mimeType: file.mimeType,
+      sizeBytes: file.sizeBytes,
+    },
+  });
+}
+
+export async function removeVehiclePhoto(
+  organizationId: string,
+  photoId: string,
+) {
+  const db = getTenantPrisma(organizationId);
+
+  const photo = await db.vehiclePhoto.findFirst({ where: { id: photoId } });
+  if (!photo) throw new Error('Photo not found');
+
+  try {
+    await deleteObject(photo.storageKey);
+  } catch (err) {
+    console.error('[storage] Failed to delete object:', err);
+  }
+
+  await db.vehiclePhoto.delete({ where: { id: photoId } });
+
+  if (photo.isCover) {
+    const next = await db.vehiclePhoto.findFirst({
+      where: { vehicleId: photo.vehicleId },
+      orderBy: { order: 'asc' },
+    });
+    if (next) {
+      await db.vehiclePhoto.update({
+        where: { id: next.id },
+        data: { isCover: true },
+      });
+    }
+  }
+}
+
+export async function setVehiclePhotoCover(
+  organizationId: string,
+  photoId: string,
+) {
+  const db = getTenantPrisma(organizationId);
+
+  const photo = await db.vehiclePhoto.findFirst({ where: { id: photoId } });
+  if (!photo) throw new Error('Photo not found');
+
+  return prisma.$transaction(async (tx) => {
+    await tx.vehiclePhoto.updateMany({
+      where: { vehicleId: photo.vehicleId, organizationId },
+      data: { isCover: false },
+    });
+    return tx.vehiclePhoto.update({
+      where: { id: photoId },
+      data: { isCover: true },
+    });
+  });
+}
+
+export async function reorderVehiclePhotos(
+  organizationId: string,
+  vehicleId: string,
+  orderedIds: string[],
+): Promise<void> {
+  const db = getTenantPrisma(organizationId);
+
+  const photos = await db.vehiclePhoto.findMany({
+    where: { vehicleId, id: { in: orderedIds } },
+  });
+  if (photos.length !== orderedIds.length) {
+    throw new Error('Some photos not found');
+  }
+
+  await prisma.$transaction(
+    orderedIds.map((id, index) =>
+      prisma.vehiclePhoto.update({
+        where: { id },
+        data: { order: index },
+      }),
+    ),
+  );
 }
