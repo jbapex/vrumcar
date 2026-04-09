@@ -9,7 +9,10 @@ type TenantDelegateName =
   | 'vehicle'
   | 'vehiclePhoto'
   | 'vehicleCost'
-  | 'vehiclePriceHistory';
+  | 'vehiclePriceHistory'
+  | 'lead'
+  | 'leadInteraction'
+  | 'customer';
 
 export class TenantNotFoundError extends Error {
   readonly model: string;
@@ -240,6 +243,9 @@ export function getTenantPrisma(organizationId: string) {
       vehiclePhoto: tenantModelExtension(orgId, 'vehiclePhoto'),
       vehicleCost: tenantModelExtension(orgId, 'vehicleCost'),
       vehiclePriceHistory: tenantModelExtension(orgId, 'vehiclePriceHistory'),
+      lead: tenantModelExtension(orgId, 'lead'),
+      leadInteraction: tenantModelExtension(orgId, 'leadInteraction'),
+      customer: tenantModelExtension(orgId, 'customer'),
     },
   });
 }

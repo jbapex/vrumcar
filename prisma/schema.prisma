@@ -57,9 +57,12 @@ model Organization {
   subscription   Subscription?
   invitations    Invitation[]
   vehicles       Vehicle[]
-  vehiclePhotos  VehiclePhoto[]
-  vehicleCosts   VehicleCost[]
-  vehiclePrices  VehiclePriceHistory[]
+  vehiclePhotos     VehiclePhoto[]
+  vehicleCosts      VehicleCost[]
+  vehiclePrices     VehiclePriceHistory[]
+  leads             Lead[]
+  leadInteractions  LeadInteraction[]
+  customers         Customer[]
 
   @@index([status])
   @@map("organizations")
@@ -99,6 +102,7 @@ model User {
   sessions        Session[]
   memberships     Membership[] @relation("MembershipUser")
   invitationsSent Invitation[] @relation("InvitationInvitedBy")
+  assignedLeads   Lead[]       @relation("LeadAssignedTo")
 
   @@map("users")
 }
@@ -275,9 +279,10 @@ model Vehicle {
   isComplete Boolean       @default(false) @map("is_complete")
 
   // Relacionamentos
-  photos       VehiclePhoto[]
-  costs        VehicleCost[]
-  priceHistory VehiclePriceHistory[]
+  photos           VehiclePhoto[]
+  costs            VehicleCost[]
+  priceHistory     VehiclePriceHistory[]
+  interestedLeads  Lead[]             @relation("LeadInterestVehicle")
 
   // Auditoria
   createdBy String?   @map("created_by")
@@ -361,4 +366,164 @@ model VehiclePriceHistory {
   @@index([organizationId, vehicleId])
   @@index([vehicleId, changedAt])
   @@map("vehicle_price_history")
+}
+
+// ===== LEADS E CLIENTES =====
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  VISITING
+  NEGOTIATING
+  WON
+  LOST
+  ARCHIVED
+}
+
+enum LeadSource {
+  WHATSAPP
+  INSTAGRAM
+  FACEBOOK
+  WEBMOTORS
+  OLX
+  ICARROS
+  MERCADO_LIVRE
+  WEBSITE
+  WALK_IN
+  PHONE
+  REFERRAL
+  OTHER
+}
+
+enum LeadPriority {
+  LOW
+  MEDIUM
+  HIGH
+  HOT
+}
+
+model Customer {
+  id             String       @id @default(cuid())
+  organizationId String       @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  name    String
+  cpfCnpj String? @map("cpf_cnpj")
+  rg      String?
+  birthDate DateTime? @map("birth_date")
+
+  phone          String?
+  phoneSecondary String? @map("phone_secondary")
+  email          String?
+
+  addressStreet       String? @map("address_street")
+  addressNumber       String? @map("address_number")
+  addressComplement   String? @map("address_complement")
+  addressNeighborhood String? @map("address_neighborhood")
+  addressCity         String? @map("address_city")
+  addressState        String? @map("address_state")
+  addressZip          String? @map("address_zip")
+
+  occupation         String?
+  monthlyIncomeCents Int?    @map("monthly_income_cents")
+  employerName       String? @map("employer_name")
+
+  notes String?  @db.Text
+  tags  String[] @default([])
+
+  leads Lead[]
+
+  createdBy String?   @map("created_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@index([organizationId, cpfCnpj])
+  @@index([organizationId, phone])
+  @@index([organizationId, email])
+  @@map("customers")
+}
+
+model Lead {
+  id             String       @id @default(cuid())
+  organizationId String       @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  name  String
+  phone String?
+  email String?
+  cpf   String?
+
+  source        LeadSource @default(OTHER)
+  sourceDetails String?    @map("source_details")
+  assignedToId  String?    @map("assigned_to_id")
+  assignedTo    User?      @relation("LeadAssignedTo", fields: [assignedToId], references: [id])
+
+  status   LeadStatus   @default(NEW)
+  priority LeadPriority @default(MEDIUM)
+  tags     String[]     @default([])
+
+  interestVehicleId   String?  @map("interest_vehicle_id")
+  interestVehicle     Vehicle? @relation("LeadInterestVehicle", fields: [interestVehicleId], references: [id], onDelete: SetNull)
+  interestDescription String?  @map("interest_description")
+
+  hasTradeIn         Boolean @default(false) @map("has_trade_in")
+  tradeInDescription String? @map("trade_in_description")
+
+  budgetMinCents Int? @map("budget_min_cents")
+  budgetMaxCents Int? @map("budget_max_cents")
+
+  interactions LeadInteraction[]
+  customerId   String?   @map("customer_id")
+  customer     Customer? @relation(fields: [customerId], references: [id])
+
+  lostReason    String?   @map("lost_reason")
+  wonAt         DateTime? @map("won_at")
+  lostAt        DateTime? @map("lost_at")
+  lastContactAt DateTime? @map("last_contact_at")
+  createdBy     String?   @map("created_by")
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+  deletedAt     DateTime?   @map("deleted_at")
+
+  @@index([organizationId, status])
+  @@index([organizationId, assignedToId])
+  @@index([organizationId, phone])
+  @@index([organizationId, email])
+  @@index([organizationId, createdAt])
+  @@index([organizationId, customerId])
+  @@map("leads")
+}
+
+enum LeadInteractionType {
+  NOTE
+  PHONE_CALL
+  WHATSAPP_SENT
+  WHATSAPP_RECEIVED
+  EMAIL_SENT
+  EMAIL_RECEIVED
+  VISIT
+  PROPOSAL_SENT
+  TEST_DRIVE
+  STATUS_CHANGE
+  ASSIGNMENT
+}
+
+model LeadInteraction {
+  id             String       @id @default(cuid())
+  organizationId String       @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  leadId         String       @map("lead_id")
+  lead           Lead         @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  type     LeadInteractionType
+  content  String              @db.Text
+  metadata Json?
+
+  createdBy String?  @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([organizationId, leadId, createdAt])
+  @@map("lead_interactions")
 }
