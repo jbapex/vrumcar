@@ -218,6 +218,15 @@ export async function ingestIncomingMessage(
     },
   );
 
+  // Decide se o texto vai como conteúdo principal ou como caption de mídia
+  const isMediaType = ['IMAGE', 'AUDIO', 'VIDEO', 'DOCUMENT'].includes(
+    mappedType,
+  );
+  const messageText =
+    text ||
+    (data.content as { text?: string } | undefined)?.text ||
+    '';
+
   const message = await db.message.create({
     data: {
       organizationId,
@@ -226,7 +235,8 @@ export async function ingestIncomingMessage(
       externalSender: (data.sender as string | undefined) ?? null,
       direction: fromMe ? 'OUTBOUND' : 'INBOUND',
       type: mappedType,
-      text: text || null,
+      text: isMediaType ? null : messageText || null,
+      mediaCaption: isMediaType ? messageText || null : null,
       status: 'DELIVERED',
       sentAt: new Date(timestamp),
       metadata: data as object,

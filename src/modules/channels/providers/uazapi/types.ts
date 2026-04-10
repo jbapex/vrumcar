@@ -168,3 +168,18 @@ export class UazapiError extends Error {
     this.name = 'UazapiError';
   }
 }
+
+export interface UazapiDownloadMediaPayload {
+  /** messageid do WhatsApp / uazapi */
+  id: string;
+}
+
+export interface UazapiDownloadMediaResponse {
+  id?: string;
+  fileURL?: string;
+  base64?: string;
+  mimetype?: string;
+  filename?: string;
+  filesize?: number;
+  [key: string]: unknown;
+}

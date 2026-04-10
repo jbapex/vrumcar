@@ -1,6 +1,7 @@
 import type {
   UazapiConnectPayload,
   UazapiConnectResponse,
+  UazapiDownloadMediaResponse,
   UazapiInstanceCreatePayload,
   UazapiInstanceCreateResponse,
   UazapiSendTextPayload,
@@ -102,6 +103,21 @@ export class UazapiClient {
     payload: UazapiSendTextPayload,
   ): Promise<UazapiSendTextResponse> {
     return this.request<UazapiSendTextResponse>('POST', '/send/text', payload);
+  }
+
+  /**
+   * Baixa o conteúdo de uma mídia (imagem, áudio, documento, vídeo).
+   * uazapi devolve fileURL ou base64 dependendo do tipo.
+   *
+   * Endpoint: POST /message/download
+   * Body: { id: messageid }
+   */
+  async downloadMedia(messageId: string): Promise<UazapiDownloadMediaResponse> {
+    return this.request<UazapiDownloadMediaResponse>(
+      'POST',
+      '/message/download',
+      { id: messageId },
+    );
   }
 
   async setWebhook(payload: UazapiWebhookPayload): Promise<unknown> {

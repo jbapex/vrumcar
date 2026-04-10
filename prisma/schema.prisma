@@ -673,6 +673,8 @@ model Message {
   mediaUrl       String? @map("media_url")
   mediaMimeType  String? @map("media_mime_type")
   mediaCaption   String? @map("media_caption") @db.Text
+  mediaSizeBytes Int?    @map("media_size_bytes")
+  mediaFileName  String? @map("media_file_name")
   metadata Json?
 
   status       MessageStatus @default(PENDING)

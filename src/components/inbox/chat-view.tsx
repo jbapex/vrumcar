@@ -2,6 +2,9 @@
 
 import { sendMessageAction } from '@/app/[orgSlug]/inbox/actions';
 import { ContactAvatar } from '@/components/inbox/contact-avatar';
+import { AudioMessage } from '@/components/inbox/media/audio-message';
+import { DocumentMessage } from '@/components/inbox/media/document-message';
+import { ImageMessage } from '@/components/inbox/media/image-message';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { formatPhone } from '@/lib/format/phone';
@@ -169,15 +172,60 @@ export function ChatView({ orgSlug, conversation, messages }: ChatViewProps) {
                       : 'border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900'
                   }`}
                 >
+                  {msg.type === 'IMAGE' ? (
+                    <ImageMessage
+                      orgSlug={orgSlug}
+                      messageId={msg.id}
+                      initialUrl={msg.mediaUrl}
+                      initialMimeType={msg.mediaMimeType}
+                      caption={msg.mediaCaption}
+                    />
+                  ) : null}
+                  {msg.type === 'AUDIO' ? (
+                    <AudioMessage
+                      orgSlug={orgSlug}
+                      messageId={msg.id}
+                      initialUrl={msg.mediaUrl}
+                      initialMimeType={msg.mediaMimeType}
+                      sizeBytes={msg.mediaSizeBytes}
+                      fileName={msg.mediaFileName}
+                    />
+                  ) : null}
+                  {msg.type === 'DOCUMENT' ? (
+                    <DocumentMessage
+                      orgSlug={orgSlug}
+                      messageId={msg.id}
+                      initialUrl={msg.mediaUrl}
+                      initialMimeType={msg.mediaMimeType}
+                      sizeBytes={msg.mediaSizeBytes}
+                      fileName={msg.mediaFileName}
+                    />
+                  ) : null}
+                  {msg.type === 'VIDEO' ? (
+                    <p className="text-sm italic opacity-75">
+                      🎥 Vídeo (visualização em breve)
+                    </p>
+                  ) : null}
+                  {(msg.type === 'LOCATION' ||
+                    msg.type === 'CONTACT' ||
+                    msg.type === 'STICKER') && (
+                    <p className="text-sm italic opacity-75">
+                      {msg.type === 'LOCATION' && '📍 Localização'}
+                      {msg.type === 'CONTACT' && '👤 Contato'}
+                      {msg.type === 'STICKER' && '🏷️ Figurinha'}
+                    </p>
+                  )}
                   {msg.type === 'TEXT' && msg.text ? (
                     <p className="text-sm break-words whitespace-pre-wrap">
                       {msg.text}
                     </p>
-                  ) : (
+                  ) : null}
+                  {msg.type === 'TEXT' && !msg.text ? (
+                    <p className="text-sm italic opacity-75">Mensagem</p>
+                  ) : null}
+                  {(msg.type === 'UNKNOWN' || msg.type === 'SYSTEM') && (
                     <p className="text-sm italic opacity-75">
-                      {msg.type === 'TEXT'
-                        ? 'Mensagem'
-                        : nonTextLabel(msg.type)}
+                      {nonTextLabel(msg.type)}
                     </p>
                   )}
                   <div
