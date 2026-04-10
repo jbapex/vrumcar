@@ -13,7 +13,10 @@ type TenantDelegateName =
   | 'lead'
   | 'leadInteraction'
   | 'customer'
-  | 'sale';
+  | 'sale'
+  | 'channelInstance'
+  | 'conversation'
+  | 'message';
 
 export class TenantNotFoundError extends Error {
   readonly model: string;
@@ -248,6 +251,9 @@ export function getTenantPrisma(organizationId: string) {
       leadInteraction: tenantModelExtension(orgId, 'leadInteraction'),
       customer: tenantModelExtension(orgId, 'customer'),
       sale: tenantModelExtension(orgId, 'sale'),
+      channelInstance: tenantModelExtension(orgId, 'channelInstance'),
+      conversation: tenantModelExtension(orgId, 'conversation'),
+      message: tenantModelExtension(orgId, 'message'),
     },
   });
 }

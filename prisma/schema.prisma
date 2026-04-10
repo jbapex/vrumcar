@@ -50,6 +50,7 @@ model Organization {
   timezone    String    @default("America/Sao_Paulo") @map("timezone")
   status      String    @default("ACTIVE") @map("status")
   trialEndsAt DateTime? @map("trial_ends_at")
+  maxChannelInstances Int     @default(3) @map("max_channel_instances")
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
 
@@ -64,6 +65,9 @@ model Organization {
   leadInteractions  LeadInteraction[]
   customers         Customer[]
   sales             Sale[]
+  channelInstances ChannelInstance[]
+  conversations    Conversation[]
+  messages         Message[]
 
   @@index([status])
   @@map("organizations")
@@ -105,6 +109,8 @@ model User {
   invitationsSent Invitation[] @relation("InvitationInvitedBy")
   assignedLeads   Lead[]       @relation("LeadAssignedTo")
   sales           Sale[]       @relation("SalesSalesPerson")
+  assignedConversations Conversation[] @relation("ConversationAssignedTo")
+  sentMessages          Message[]      @relation("MessageSentBy")
 
   @@map("users")
 }
@@ -517,6 +523,175 @@ model Sale {
   @@map("sales")
 }
 
+// ===== WHATSAPP / CANAIS DE MENSAGEM =====
+
+enum ChannelProvider {
+  UAZAPI
+
+  @@map("channel_provider")
+}
+
+enum ChannelInstanceStatus {
+  PENDING
+  QR_REQUIRED
+  CONNECTING
+  CONNECTED
+  DISCONNECTED
+  ERROR
+  INACTIVE
+
+  @@map("channel_instance_status")
+}
+
+enum ConversationStatus {
+  OPEN
+  PENDING
+  RESOLVED
+  ARCHIVED
+
+  @@map("conversation_status")
+}
+
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
+
+  @@map("message_direction")
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  AUDIO
+  VIDEO
+  DOCUMENT
+  LOCATION
+  CONTACT
+  STICKER
+  SYSTEM
+  UNKNOWN
+
+  @@map("message_type")
+}
+
+enum MessageStatus {
+  PENDING
+  SENT
+  DELIVERED
+  READ
+  FAILED
+
+  @@map("message_status")
+}
+
+model ChannelInstance {
+  id             String                @id @default(cuid())
+  organizationId String                @map("organization_id")
+  organization   Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  name     String
+  provider ChannelProvider @default(UAZAPI)
+
+  externalId     String? @map("external_id")
+  baseUrl        String  @map("base_url")
+  encryptedToken String? @map("encrypted_token")
+  phoneNumber    String? @map("phone_number")
+  profileName    String? @map("profile_name")
+
+  status     ChannelInstanceStatus @default(PENDING)
+  lastQrCode String?               @map("last_qr_code") @db.Text
+  lastError  String?               @map("last_error") @db.Text
+  lastConnectedAt    DateTime? @map("last_connected_at")
+  lastDisconnectedAt DateTime? @map("last_disconnected_at")
+
+  webhookSecret String @map("webhook_secret")
+
+  conversations Conversation[]
+
+  createdBy String?   @map("created_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@index([organizationId, status])
+  @@index([webhookSecret])
+  @@map("channel_instances")
+}
+
+model Conversation {
+  id             String       @id @default(cuid())
+  organizationId String       @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  channelInstanceId String          @map("channel_instance_id")
+  channelInstance   ChannelInstance @relation(fields: [channelInstanceId], references: [id], onDelete: Cascade)
+
+  externalChatId String  @map("external_chat_id")
+  phoneNumber    String  @map("phone_number")
+  contactName    String? @map("contact_name")
+  contactAvatar  String? @map("contact_avatar")
+  isGroup        Boolean @default(false) @map("is_group")
+
+  leadId String? @map("lead_id")
+  lead   Lead?   @relation("ConversationLead", fields: [leadId], references: [id], onDelete: SetNull)
+
+  status           ConversationStatus @default(OPEN)
+  assignedToId     String?            @map("assigned_to_id")
+  assignedTo       User?              @relation("ConversationAssignedTo", fields: [assignedToId], references: [id])
+  unreadCount      Int                @default(0) @map("unread_count")
+  lastMessageAt    DateTime?          @map("last_message_at")
+  lastMessagePreview String?         @map("last_message_preview")
+
+  messages Message[]
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@unique([channelInstanceId, externalChatId])
+  @@index([organizationId, status, lastMessageAt])
+  @@index([organizationId, leadId])
+  @@index([organizationId, phoneNumber])
+  @@map("conversations")
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  organizationId String       @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  conversationId String       @map("conversation_id")
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  externalMessageId String? @map("external_message_id")
+  externalSender    String? @map("external_sender")
+
+  direction MessageDirection
+  type      MessageType
+  text      String? @db.Text
+  mediaUrl       String? @map("media_url")
+  mediaMimeType  String? @map("media_mime_type")
+  mediaCaption   String? @map("media_caption") @db.Text
+  metadata Json?
+
+  status       MessageStatus @default(PENDING)
+  sentAt       DateTime?     @map("sent_at")
+  deliveredAt  DateTime?     @map("delivered_at")
+  readAt       DateTime?     @map("read_at")
+  failedAt     DateTime?     @map("failed_at")
+  errorMessage String?       @map("error_message") @db.Text
+
+  sentByUserId String? @map("sent_by_user_id")
+  sentBy       User?   @relation("MessageSentBy", fields: [sentByUserId], references: [id])
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([organizationId, conversationId, createdAt])
+  @@index([externalMessageId])
+  @@map("messages")
+}
+
 model Lead {
   id             String       @id @default(cuid())
   organizationId String       @map("organization_id")
@@ -547,6 +722,7 @@ model Lead {
   budgetMaxCents Int? @map("budget_max_cents")
 
   interactions LeadInteraction[]
+  conversations Conversation[] @relation("ConversationLead")
   customerId   String?   @map("customer_id")
   customer     Customer? @relation(fields: [customerId], references: [id])
   sale         Sale?     @relation("SaleLead")
