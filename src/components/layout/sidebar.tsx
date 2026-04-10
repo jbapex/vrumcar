@@ -10,9 +10,10 @@ import {
   Contact,
   Kanban,
   LayoutDashboard,
-  MessageSquare,
+  MessageCircle,
   Settings,
   ShoppingCart,
+  Smartphone,
   Users,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -20,7 +21,7 @@ import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import { LogoMark } from '@/components/brand/logo';
 import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
+import { LUCIDE_STROKE_THIN } from '@/lib/ui/lucide';
 import { cn } from '@/lib/utils';
 
 const navIcons = {
@@ -30,7 +31,8 @@ const navIcons = {
   Contact,
   ShoppingCart,
   Kanban,
-  MessageSquare,
+  MessageCircle,
+  Smartphone,
   Calendar,
   BarChart3,
   Settings,
@@ -40,6 +42,7 @@ type NavDef = {
   href: string;
   icon: keyof typeof navIcons;
   label: string;
+  iconClassName?: string;
 };
 
 function buildItems(orgSlug: string): NavDef[] {
@@ -50,8 +53,14 @@ function buildItems(orgSlug: string): NavDef[] {
     { href: `${p}/leads`, icon: 'Users', label: 'Leads' },
     { href: `${p}/customers`, icon: 'Contact', label: 'Clientes' },
     { href: `${p}/sales`, icon: 'ShoppingCart', label: 'Vendas' },
+    { href: `${p}/channels`, icon: 'Smartphone', label: 'Canais' },
     { href: `${p}/pipeline`, icon: 'Kanban', label: 'Funil' },
-    { href: `${p}/inbox`, icon: 'MessageSquare', label: 'Atendimento' },
+    {
+      href: `${p}/inbox`,
+      icon: 'MessageCircle',
+      label: 'Atendimento',
+      iconClassName: 'text-emerald-400',
+    },
     { href: `${p}/calendar`, icon: 'Calendar', label: 'Agenda' },
     { href: `${p}/reports`, icon: 'BarChart3', label: 'Relatórios' },
     { href: `${p}/settings`, icon: 'Settings', label: 'Configurações' },
@@ -87,25 +96,27 @@ export function Sidebar({
   return (
     <div
       className={cn(
-        'flex h-full flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-all duration-200',
+        'flex h-full flex-col overflow-hidden bg-sidebar text-sidebar-foreground transition-all duration-200',
+        /* Desktop: borda/arco ficam no <aside> (clip correto). Mobile sheet: borda aqui. */
+        isMobile ? 'rounded-tr-3xl border-r border-white/10' : '',
         effectiveCollapsed ? 'w-16' : 'w-64',
       )}
     >
       <div
         className={cn(
-          'flex h-14 shrink-0 items-center gap-2 border-b border-sidebar-border px-2',
+          'flex h-16 shrink-0 items-center gap-2 border-b border-white/15 bg-sidebar px-2',
+          isMobile ? 'rounded-tr-3xl' : 'rounded-tr-4xl',
           effectiveCollapsed && 'justify-center',
         )}
       >
-        <LogoMark className="size-9" />
+        <LogoMark className="size-8" variant="white" />
         {!effectiveCollapsed && (
-          <span className="truncate text-lg font-bold tracking-tight text-primary">
+          <span className="truncate text-lg font-bold tracking-tight text-sidebar-foreground">
             VrumCar
           </span>
         )}
       </div>
-      <Separator />
-      <nav className="flex-1 space-y-1 overflow-y-auto p-2">
+      <nav className="flex-1 space-y-1 overflow-y-auto p-2 pt-3">
         {items.map((item) => {
           const Icon = navIcons[item.icon];
           const active = linkActive(item.href);
@@ -116,33 +127,46 @@ export function Sidebar({
               title={effectiveCollapsed ? item.label : undefined}
               onClick={() => onNavigate?.()}
               className={cn(
-                'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors',
                 active
-                  ? 'bg-primary/10 text-primary'
-                  : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
+                  ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-sm'
+                  : 'text-sidebar-foreground/90 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
                 effectiveCollapsed && 'justify-center px-2',
               )}
             >
-              <Icon className="size-5 shrink-0" aria-hidden />
+              <Icon
+                className={cn(
+                  'size-[1.125rem] shrink-0',
+                  active ? 'text-sidebar-primary-foreground' : item.iconClassName,
+                )}
+                strokeWidth={LUCIDE_STROKE_THIN}
+                aria-hidden
+              />
               {!effectiveCollapsed && <span>{item.label}</span>}
             </Link>
           );
         })}
       </nav>
       {!isMobile && (
-        <div className="border-t border-sidebar-border p-2">
+        <div className="border-t border-white/10 p-2">
           <Button
             type="button"
             variant="ghost"
             size="icon"
-            className="w-full"
+            className="w-full text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
             onClick={() => setCollapsed((c) => !c)}
             aria-label={collapsed ? 'Expandir menu' : 'Recolher menu'}
           >
             {collapsed ? (
-              <ChevronRight className="size-4" />
+              <ChevronRight
+                className="size-4"
+                strokeWidth={LUCIDE_STROKE_THIN}
+              />
             ) : (
-              <ChevronLeft className="size-4" />
+              <ChevronLeft
+                className="size-4"
+                strokeWidth={LUCIDE_STROKE_THIN}
+              />
             )}
           </Button>
         </div>
