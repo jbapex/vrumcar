@@ -95,17 +95,42 @@ export interface UazapiWebhookPayload {
   >;
 }
 
+/**
+ * Payload REAL que o uazapi novo22.uazapi.com envia via webhook.
+ * Validado via captura de webhook em produção (10/04/2026).
+ *
+ * NOTA: difere do documentado na spec OpenAPI v2.0.1 (que usa
+ * 'event' + 'data'). Esse formato é o que o servidor real envia.
+ *
+ * Campos opcionais `event` / `data` mantêm compatibilidade com payloads
+ * no formato antigo da spec.
+ */
 export interface UazapiIncomingWebhook {
-  event:
-    | 'message'
-    | 'status'
-    | 'presence'
-    | 'group'
-    | 'connection'
-    | 'messages'
-    | 'messages_update';
-  instance: string;
-  data: UazapiMessageData | Record<string, unknown>;
+  EventType?: string;
+  BaseUrl?: string;
+  instanceName?: string;
+  owner?: string;
+  token?: string;
+  chatSource?: string;
+  chat?: UazapiChatData;
+  message?: UazapiMessageData;
+  /** Spec OpenAPI antiga (camelCase) — fallback */
+  event?: string;
+  data?: UazapiMessageData | Record<string, unknown>;
+}
+
+export interface UazapiChatData {
+  id?: string;
+  name?: string;
+  image?: string;
+  imagePreview?: string;
+  wa_chatid?: string;
+  wa_isGroup?: boolean;
+  wa_contactName?: string;
+  wa_name?: string;
+  wa_unreadCount?: number;
+  phone?: string;
+  [key: string]: unknown;
 }
 
 export interface UazapiMessageData {
@@ -114,13 +139,22 @@ export interface UazapiMessageData {
   chatid?: string;
   sender?: string;
   senderName?: string;
+  sender_pn?: string;
+  sender_lid?: string;
   isGroup?: boolean;
   fromMe?: boolean;
   messageType?: string;
+  mediaType?: string;
   messageTimestamp?: number;
   status?: string;
   text?: string;
+  type?: string;
   wasSentByApi?: boolean;
+  groupName?: string;
+  content?: {
+    text?: string;
+    [key: string]: unknown;
+  };
   [key: string]: unknown;
 }
 

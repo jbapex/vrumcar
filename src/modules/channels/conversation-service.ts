@@ -102,23 +102,6 @@ export async function findOrCreateConversation(
   });
 }
 
-const UAZAPI_TYPE_MAP: Record<string, MessageType> = {
-  conversation: 'TEXT',
-  extendedTextMessage: 'TEXT',
-  imageMessage: 'IMAGE',
-  audioMessage: 'AUDIO',
-  videoMessage: 'VIDEO',
-  documentMessage: 'DOCUMENT',
-  locationMessage: 'LOCATION',
-  contactMessage: 'CONTACT',
-  stickerMessage: 'STICKER',
-};
-
-function mapMessageType(messageType: string | undefined): MessageType {
-  if (!messageType) return 'UNKNOWN';
-  return UAZAPI_TYPE_MAP[messageType] ?? 'UNKNOWN';
-}
-
 export async function ingestIncomingMessage(
   organizationId: string,
   channelInstanceId: string,
@@ -126,9 +109,39 @@ export async function ingestIncomingMessage(
 ): Promise<Message | null> {
   const db = getTenantPrisma(organizationId);
 
+  // Mapa de tipos do uazapi pro nosso enum interno.
+  // O uazapi real usa PascalCase (ExtendedTextMessage, etc).
+  // Mantemos também os formatos antigos da spec OpenAPI por
+  // segurança (caso o uazapi mude o formato).
+  const typeMap: Record<string, MessageType> = {
+    // Formato real (PascalCase)
+    Conversation: 'TEXT',
+    ExtendedTextMessage: 'TEXT',
+    ImageMessage: 'IMAGE',
+    AudioMessage: 'AUDIO',
+    VideoMessage: 'VIDEO',
+    DocumentMessage: 'DOCUMENT',
+    LocationMessage: 'LOCATION',
+    ContactMessage: 'CONTACT',
+    StickerMessage: 'STICKER',
+    // Formato da spec OpenAPI (camelCase) — fallback
+    conversation: 'TEXT',
+    extendedTextMessage: 'TEXT',
+    imageMessage: 'IMAGE',
+    audioMessage: 'AUDIO',
+    videoMessage: 'VIDEO',
+    documentMessage: 'DOCUMENT',
+    locationMessage: 'LOCATION',
+    contactMessage: 'CONTACT',
+    stickerMessage: 'STICKER',
+  };
+
   const chatId = data.chatid as string | undefined;
   const messageId = data.messageid as string | undefined;
-  const text = (data.text as string | undefined) ?? '';
+  const text =
+    (data.text as string | undefined) ??
+    (data.content?.text as string | undefined) ??
+    '';
   const fromMe = (data.fromMe as boolean | undefined) ?? false;
   const messageType = (data.messageType as string | undefined) ?? 'unknown';
   const timestamp =
@@ -139,6 +152,18 @@ export async function ingestIncomingMessage(
     console.warn('[channels] Ignoring message without chatid:', data);
     return null;
   }
+
+  // Decisão de produto: ignorar mensagens de grupo.
+  // Inbox do VrumCar é só pra conversas diretas (1:1) com clientes.
+  // Se quiser processar grupos no futuro, criar feature flag.
+  if (isGroupChat(chatId) || data.isGroup === true) {
+    return null;
+  }
+
+  const mappedType =
+    messageType && typeMap[messageType] !== undefined
+      ? typeMap[messageType]!
+      : 'UNKNOWN';
 
   if (messageId) {
     const existing = await db.message.findFirst({
@@ -152,8 +177,6 @@ export async function ingestIncomingMessage(
     channelInstanceId,
     { chatId, contactName: senderName ?? undefined },
   );
-
-  const mappedType = mapMessageType(messageType);
 
   const message = await db.message.create({
     data: {
