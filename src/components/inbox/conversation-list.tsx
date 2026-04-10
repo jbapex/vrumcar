@@ -1,3 +1,4 @@
+import { ContactAvatar } from '@/components/inbox/contact-avatar';
 import { Badge } from '@/components/ui/badge';
 import { formatRelativeTime } from '@/lib/format/relative-time';
 import { formatPhone } from '@/lib/format/phone';
@@ -9,6 +10,7 @@ import Link from 'next/link';
 export type ConversationListItem = {
   id: string;
   contactName: string | null;
+  contactAvatar: string | null;
   phoneNumber: string;
   lastMessagePreview: string | null;
   lastMessageAt: Date | null;
@@ -48,9 +50,11 @@ export function ConversationList({
               active && 'bg-primary/10',
             )}
           >
-            <div className="bg-muted text-muted-foreground flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-semibold">
-              {title.slice(0, 1).toUpperCase()}
-            </div>
+            <ContactAvatar
+              name={c.contactName}
+              avatarUrl={c.contactAvatar}
+              size="md"
+            />
             <div className="min-w-0 flex-1">
               <div className="flex items-center justify-between gap-2">
                 <span className="truncate font-medium">{title}</span>

@@ -8,6 +8,7 @@ import {
 import type { ConversationListItem } from '@/components/inbox/conversation-list';
 import { ChatView } from '@/components/inbox/chat-view';
 import { ConversationList } from '@/components/inbox/conversation-list';
+import { InboxPoller } from '@/components/inbox/inbox-poller';
 import { MarkConversationRead } from '@/components/inbox/mark-conversation-read';
 import { buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -63,6 +64,7 @@ export default async function InboxConversationPage({
   const listItems: ConversationListItem[] = items.map((c) => ({
     id: c.id,
     contactName: c.contactName,
+    contactAvatar: c.contactAvatar,
     phoneNumber: c.phoneNumber,
     lastMessagePreview: c.lastMessagePreview,
     lastMessageAt: c.lastMessageAt,
@@ -126,6 +128,7 @@ export default async function InboxConversationPage({
             conversation={{
               id: conversation.id,
               contactName: conversation.contactName,
+              contactAvatar: conversation.contactAvatar,
               phoneNumber: conversation.phoneNumber,
               leadId: conversation.leadId,
               lead: conversation.lead,
@@ -134,6 +137,7 @@ export default async function InboxConversationPage({
           />
         </main>
       </div>
+      <InboxPoller intervalMs={3000} />
     </>
   );
 }

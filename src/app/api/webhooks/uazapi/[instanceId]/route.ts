@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { ingestIncomingMessage } from '@/modules/channels/conversation-service';
+import {
+  ingestIncomingMessage,
+  updateMessageStatus,
+} from '@/modules/channels/conversation-service';
 import type {
   UazapiIncomingWebhook,
   UazapiMessageData,
@@ -26,15 +29,12 @@ export async function POST(
 ) {
   const { instanceId } = await ctx.params;
 
-  // Valida secret na query string
   const url = new URL(req.url);
   const secret = url.searchParams.get('secret');
   if (!secret) {
     return NextResponse.json({ error: 'Missing secret' }, { status: 401 });
   }
 
-  // Busca a instância (sem tenant scope porque o webhook não tem
-  // contexto de auth — usa o secret pra validar)
   const instance = await prisma.channelInstance.findFirst({
     where: {
       id: instanceId,
@@ -50,7 +50,6 @@ export async function POST(
     );
   }
 
-  // Parse do body
   let payload: UazapiIncomingWebhook;
   try {
     payload = (await req.json()) as UazapiIncomingWebhook;
@@ -58,13 +57,11 @@ export async function POST(
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
-  // Roteamento por tipo de evento
   try {
     const eventTypeRaw = (payload.EventType ?? payload.event ?? '').toString();
     const eventType = eventTypeRaw.toLowerCase();
 
     if (eventType === 'messages' || eventType === 'message') {
-      // Formato novo: message + chat no topo
       if (payload.message) {
         const msg = payload.message as UazapiMessageData;
         const chat = payload.chat;
@@ -79,10 +76,21 @@ export async function POST(
             (chat?.wa_name as string | undefined) ??
             (chat?.name as string | undefined),
         };
+
+        const chatData = payload.chat;
+        const contactInfo = chatData
+          ? {
+              avatarUrl: chatData.imagePreview,
+              name: chatData.wa_contactName ?? chatData.name,
+              isGroup: chatData.wa_isGroup ?? false,
+            }
+          : undefined;
+
         await ingestIncomingMessage(
           instance.organizationId,
           instance.id,
           enriched,
+          contactInfo,
         );
       } else if (
         payload.data &&
@@ -90,19 +98,39 @@ export async function POST(
         payload.data !== null &&
         'chatid' in payload.data
       ) {
-        // Spec antiga: corpo em `data`
         await ingestIncomingMessage(
           instance.organizationId,
           instance.id,
           payload.data as UazapiMessageData,
         );
       }
+    } else if (eventType === 'messages_update') {
+      const msgData = payload.message as
+        | { messageid?: string; status?: string }
+        | undefined;
+      if (msgData?.messageid && msgData.status) {
+        await updateMessageStatus(
+          instance.organizationId,
+          msgData.messageid,
+          msgData.status,
+        );
+      } else if (
+        payload.data &&
+        typeof payload.data === 'object' &&
+        payload.data !== null &&
+        'messageid' in payload.data &&
+        'status' in payload.data
+      ) {
+        const d = payload.data as { messageid?: string; status?: string };
+        if (d.messageid && d.status) {
+          await updateMessageStatus(
+            instance.organizationId,
+            d.messageid,
+            d.status,
+          );
+        }
+      }
     } else if (eventType === 'connection') {
-      // Atualização de status da conexão.
-      // No formato real, o status pode estar em chat.status ou
-      // em outros campos. Por enquanto, marca como CONNECTED
-      // quando recebe qualquer evento de connection (porque
-      // o sync ativo já cuida do status detalhado).
       await prisma.channelInstance.update({
         where: { id: instance.id },
         data: {
@@ -112,14 +140,10 @@ export async function POST(
         },
       });
     }
-    // Outros eventos (messages_update, presence, etc) ignorados
-    // por enquanto. Podem ser implementados depois.
 
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error('[uazapi-webhook] Error processing event:', err);
-    // Retorna 200 mesmo em erro pra evitar retry infinito do uazapi.
-    // Erros internos a gente investiga via log.
     return NextResponse.json({ ok: false, error: 'Internal error' });
   }
 }

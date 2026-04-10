@@ -2,6 +2,7 @@ import type {
   Conversation,
   ConversationStatus,
   Message,
+  MessageStatus,
   MessageType,
   Prisma,
 } from '@prisma/client';
@@ -31,6 +32,7 @@ export async function findOrCreateConversation(
   params: {
     chatId: string;
     contactName?: string;
+    contactAvatar?: string;
   },
 ): Promise<Conversation> {
   const db = getTenantPrisma(organizationId);
@@ -44,10 +46,24 @@ export async function findOrCreateConversation(
   });
 
   if (existing) {
-    if (params.contactName && params.contactName !== existing.contactName) {
+    const data: Prisma.ConversationUpdateInput = {};
+    if (
+      params.contactName != null &&
+      params.contactName !== existing.contactName
+    ) {
+      data.contactName = params.contactName;
+    }
+    const avatarIn =
+      params.contactAvatar != null && params.contactAvatar.trim() !== ''
+        ? params.contactAvatar.trim()
+        : null;
+    if (avatarIn && avatarIn !== existing.contactAvatar) {
+      data.contactAvatar = avatarIn;
+    }
+    if (Object.keys(data).length > 0) {
       return db.conversation.update({
         where: { id: existing.id },
-        data: { contactName: params.contactName },
+        data,
       });
     }
     return existing;
@@ -88,6 +104,11 @@ export async function findOrCreateConversation(
     }
   }
 
+  const contactAvatar =
+    params.contactAvatar != null && params.contactAvatar.trim() !== ''
+      ? params.contactAvatar.trim()
+      : null;
+
   return db.conversation.create({
     data: {
       organizationId,
@@ -95,6 +116,7 @@ export async function findOrCreateConversation(
       externalChatId: params.chatId,
       phoneNumber,
       contactName: params.contactName ?? null,
+      contactAvatar,
       isGroup,
       leadId,
       status: 'OPEN',
@@ -106,6 +128,11 @@ export async function ingestIncomingMessage(
   organizationId: string,
   channelInstanceId: string,
   data: UazapiMessageData,
+  contactInfo?: {
+    avatarUrl?: string;
+    name?: string;
+    isGroup?: boolean;
+  },
 ): Promise<Message | null> {
   const db = getTenantPrisma(organizationId);
 
@@ -156,7 +183,11 @@ export async function ingestIncomingMessage(
   // Decisão de produto: ignorar mensagens de grupo.
   // Inbox do VrumCar é só pra conversas diretas (1:1) com clientes.
   // Se quiser processar grupos no futuro, criar feature flag.
-  if (isGroupChat(chatId) || data.isGroup === true) {
+  if (
+    isGroupChat(chatId) ||
+    data.isGroup === true ||
+    contactInfo?.isGroup === true
+  ) {
     return null;
   }
 
@@ -172,10 +203,19 @@ export async function ingestIncomingMessage(
     if (existing) return existing;
   }
 
+  const avatarFromContact =
+    contactInfo?.avatarUrl != null && contactInfo.avatarUrl.trim() !== ''
+      ? contactInfo.avatarUrl.trim()
+      : undefined;
+
   const conversation = await findOrCreateConversation(
     organizationId,
     channelInstanceId,
-    { chatId, contactName: senderName ?? undefined },
+    {
+      chatId,
+      contactName: contactInfo?.name ?? senderName ?? undefined,
+      contactAvatar: avatarFromContact,
+    },
   );
 
   const message = await db.message.create({
@@ -223,6 +263,77 @@ export async function ingestIncomingMessage(
   }
 
   return message;
+}
+
+/**
+ * Atualiza o status de uma mensagem existente baseado no
+ * evento messages_update do uazapi.
+ *
+ * Mapeia status do uazapi → nosso enum:
+ * - "Sent" → SENT
+ * - "Delivered" → DELIVERED
+ * - "Read" → READ
+ * - "Failed" → FAILED
+ */
+export async function updateMessageStatus(
+  organizationId: string,
+  externalMessageId: string,
+  uazapiStatus: string,
+): Promise<void> {
+  const db = getTenantPrisma(organizationId);
+
+  const statusMap: Record<string, MessageStatus> = {
+    Sent: 'SENT',
+    SENT: 'SENT',
+    sent: 'SENT',
+    Delivered: 'DELIVERED',
+    DELIVERED: 'DELIVERED',
+    delivered: 'DELIVERED',
+    Read: 'READ',
+    READ: 'READ',
+    read: 'READ',
+    Failed: 'FAILED',
+    FAILED: 'FAILED',
+    failed: 'FAILED',
+  };
+
+  const newStatus = statusMap[uazapiStatus];
+  if (!newStatus) return;
+
+  const message = await db.message.findFirst({
+    where: { externalMessageId },
+  });
+  if (!message) return;
+
+  const statusOrder: Record<MessageStatus, number> = {
+    PENDING: 0,
+    SENT: 1,
+    DELIVERED: 2,
+    READ: 3,
+    FAILED: -1,
+  };
+
+  if (newStatus !== 'FAILED') {
+    const currentOrder = statusOrder[message.status] ?? 0;
+    const nextOrder = statusOrder[newStatus] ?? 0;
+    if (nextOrder <= currentOrder) {
+      return;
+    }
+  }
+
+  const data: Prisma.MessageUpdateInput = { status: newStatus };
+  if (newStatus === 'DELIVERED' && !message.deliveredAt) {
+    data.deliveredAt = new Date();
+  } else if (newStatus === 'READ' && !message.readAt) {
+    data.readAt = new Date();
+  } else if (newStatus === 'FAILED' && !message.failedAt) {
+    data.failedAt = new Date();
+  }
+
+  await db.message.update({
+    where: { id: message.id },
+    data,
+  });
 }
 
 export async function sendTextMessage(

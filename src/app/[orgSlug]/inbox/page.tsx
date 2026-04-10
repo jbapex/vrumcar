@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db';
 import { listConversations } from '@/modules/channels/conversation-service';
 import type { ConversationListItem } from '@/components/inbox/conversation-list';
 import { ConversationList } from '@/components/inbox/conversation-list';
+import { InboxPoller } from '@/components/inbox/inbox-poller';
 import { buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
@@ -53,6 +54,7 @@ export default async function InboxPage({
   const listItems: ConversationListItem[] = items.map((c) => ({
     id: c.id,
     contactName: c.contactName,
+    contactAvatar: c.contactAvatar,
     phoneNumber: c.phoneNumber,
     lastMessagePreview: c.lastMessagePreview,
     lastMessageAt: c.lastMessageAt,
@@ -95,6 +97,7 @@ export default async function InboxPage({
       <main className="bg-muted/30 text-muted-foreground hidden min-h-[200px] flex-1 items-center justify-center p-8 md:flex">
         <p className="text-center text-sm">Selecione uma conversa</p>
       </main>
+      <InboxPoller intervalMs={3000} />
     </div>
   );
 }

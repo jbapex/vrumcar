@@ -597,6 +597,7 @@ model ChannelInstance {
   encryptedToken String? @map("encrypted_token")
   phoneNumber    String? @map("phone_number")
   profileName    String? @map("profile_name")
+  profileImageUrl String? @map("profile_image_url")
 
   status     ChannelInstanceStatus @default(PENDING)
   lastQrCode String?               @map("last_qr_code") @db.Text

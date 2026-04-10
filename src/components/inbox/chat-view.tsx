@@ -1,6 +1,7 @@
 'use client';
 
 import { sendMessageAction } from '@/app/[orgSlug]/inbox/actions';
+import { ContactAvatar } from '@/components/inbox/contact-avatar';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { formatPhone } from '@/lib/format/phone';
@@ -12,7 +13,6 @@ import {
   CheckCheck,
   Clock,
   Send,
-  User,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -23,6 +23,7 @@ interface ChatViewProps {
   conversation: {
     id: string;
     contactName: string | null;
+    contactAvatar: string | null;
     phoneNumber: string;
     leadId: string | null;
     lead: { id: string; name: string; status: string } | null;
@@ -32,15 +33,24 @@ interface ChatViewProps {
 
 function MessageStatusIcon({ status }: { status: Message['status'] }) {
   if (status === 'PENDING')
-    return <Clock className="h-3 w-3 opacity-60" aria-hidden />;
+    return (
+      <Clock className="h-3 w-3 text-zinc-400 dark:text-zinc-500" aria-hidden />
+    );
   if (status === 'SENT')
-    return <Check className="h-3 w-3 opacity-60" aria-hidden />;
+    return (
+      <Check className="h-3 w-3 text-zinc-400 dark:text-zinc-500" aria-hidden />
+    );
   if (status === 'DELIVERED')
-    return <CheckCheck className="h-3 w-3 opacity-60" aria-hidden />;
+    return (
+      <CheckCheck
+        className="h-3 w-3 text-zinc-400 dark:text-zinc-500"
+        aria-hidden
+      />
+    );
   if (status === 'READ')
     return <CheckCheck className="h-3 w-3 text-blue-300" aria-hidden />;
   if (status === 'FAILED')
-    return <AlertCircle className="h-3 w-3 text-red-300" aria-hidden />;
+    return <AlertCircle className="h-3 w-3 text-red-500" aria-hidden />;
   return null;
 }
 
@@ -115,9 +125,11 @@ export function ChatView({ orgSlug, conversation, messages }: ChatViewProps) {
       <div className="border-b border-zinc-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-950">
         <div className="flex items-center justify-between gap-2">
           <div className="flex min-w-0 items-center gap-3">
-            <div className="bg-muted text-muted-foreground flex h-10 w-10 shrink-0 items-center justify-center rounded-full">
-              <User className="h-5 w-5" aria-hidden />
-            </div>
+            <ContactAvatar
+              name={conversation.contactName}
+              avatarUrl={conversation.contactAvatar}
+              size="md"
+            />
             <div className="min-w-0">
               <p className="truncate font-medium">{displayName}</p>
               <p className="text-muted-foreground text-xs">
