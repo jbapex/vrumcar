@@ -45,7 +45,18 @@ export default async function InboxConversationPage({
   const conversation = await db.conversation.findFirst({
     where: { id: conversationId, deletedAt: null },
     include: {
-      lead: { select: { id: true, name: true, status: true } },
+      lead: {
+        select: {
+          id: true,
+          name: true,
+          phone: true,
+          email: true,
+          cpf: true,
+          status: true,
+          notes: true,
+          createdAt: true,
+        },
+      },
       channelInstance: { select: { id: true, name: true, status: true } },
     },
   });
@@ -132,6 +143,9 @@ export default async function InboxConversationPage({
               phoneNumber: conversation.phoneNumber,
               leadId: conversation.leadId,
               lead: conversation.lead,
+              channelInstance: conversation.channelInstance,
+              createdAt: conversation.createdAt,
+              lastMessageAt: conversation.lastMessageAt,
             }}
             messages={messages}
           />

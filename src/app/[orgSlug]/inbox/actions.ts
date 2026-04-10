@@ -64,3 +64,25 @@ export async function markAsReadAction(
   await markConversationAsRead(org.id, conversationId);
   revalidatePath(`/${orgSlug}/inbox`);
 }
+
+export async function updateLeadNotesAction(
+  orgSlug: string,
+  leadId: string,
+  notes: string,
+) {
+  const { org } = await requireOrgAccess(orgSlug);
+
+  const lead = await prisma.lead.findFirst({
+    where: { id: leadId, organizationId: org.id, deletedAt: null },
+  });
+  if (!lead) {
+    throw new Error('Lead não encontrado');
+  }
+
+  await prisma.lead.update({
+    where: { id: leadId },
+    data: { notes: notes || null },
+  });
+
+  revalidatePath(`/${orgSlug}/inbox`);
+}

@@ -720,6 +720,7 @@ model Lead {
 
   hasTradeIn         Boolean @default(false) @map("has_trade_in")
   tradeInDescription String? @map("trade_in_description")
+  notes              String? @db.Text
 
   budgetMinCents Int? @map("budget_min_cents")
   budgetMaxCents Int? @map("budget_max_cents")
