@@ -2,9 +2,23 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { formatCpfCnpj, formatPhone } from '@/lib/format/phone';
 import { listCustomers } from '@/modules/customers/service';
+import { DataListCard } from '@/components/layout/data-list-card';
+import {
+  ListPageEmpty,
+  ListTable,
+  ListTableBody,
+  ListTableCell,
+  ListTableHeadCell,
+  ListTableHeader,
+  ListTableRow,
+  ListTableWrap,
+} from '@/components/layout/list-table';
+import { PageHeader } from '@/components/layout/page-header';
 import { Button, buttonVariants } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
+import { LUCIDE_STROKE_THIN } from '@/lib/ui/lucide';
+import { cn } from '@/lib/utils';
+import { Plus, Search } from 'lucide-react';
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 
@@ -86,83 +100,116 @@ export default async function CustomersListPage({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">Clientes</h1>
+      <PageHeader
+        breadcrumbs={
+          <>
+            <span className="font-medium text-foreground">VrumCar</span>
+            <span className="mx-1.5">/</span>
+            <span>Clientes</span>
+          </>
+        }
+        title="Clientes"
+        description="Base de clientes da loja — busque por nome, documento ou contato."
+      >
         <Link
           href={`/${orgSlug}/customers/new`}
-          className={cn(buttonVariants())}
+          className={cn(buttonVariants({ size: 'pill' }), 'gap-2')}
         >
-          + Novo cliente
+          <Plus className="size-4" strokeWidth={LUCIDE_STROKE_THIN} />
+          Novo cliente
         </Link>
-      </div>
+      </PageHeader>
 
-      <form method="GET" className="flex flex-col gap-4 sm:flex-row sm:items-end">
-        <div className="min-w-[200px] flex-1 space-y-2">
-          <label htmlFor="search" className="text-sm font-medium">
-            Buscar
-          </label>
-          <Input
-            id="search"
-            name="search"
-            placeholder="Nome, CPF, telefone, email…"
-            defaultValue={listParams.search ?? ''}
+      <DataListCard>
+        <form
+          method="GET"
+          className="flex flex-col border-b border-border/50 bg-muted/15 px-4 py-5 md:flex-row md:items-end md:gap-4 md:px-6"
+        >
+          {result.total > 0 ? (
+            <p className="mb-4 w-full text-center text-sm text-muted-foreground md:mb-0 md:w-auto md:flex-1 md:text-left">
+              {result.total} cliente{result.total !== 1 ? 's' : ''}
+            </p>
+          ) : (
+            <div className="hidden md:block md:flex-1" />
+          )}
+          <div className="relative min-w-[220px] flex-1 md:max-w-md">
+            <label htmlFor="search" className="sr-only">
+              Buscar
+            </label>
+            <Search
+              className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground"
+              strokeWidth={LUCIDE_STROKE_THIN}
+              aria-hidden
+            />
+            <Input
+              id="search"
+              name="search"
+              variant="pill"
+              className="pl-10"
+              placeholder="Nome, CPF, telefone, email…"
+              defaultValue={listParams.search ?? ''}
+            />
+          </div>
+          <input type="hidden" name="page" value="1" />
+          <input
+            type="hidden"
+            name="pageSize"
+            value={String(listParams.pageSize)}
           />
-        </div>
-        <input type="hidden" name="page" value="1" />
-        <input
-          type="hidden"
-          name="pageSize"
-          value={String(listParams.pageSize)}
-        />
-        <Button type="submit">Filtrar</Button>
-      </form>
+          <Button type="submit" size="pill" className="mt-3 w-full md:mt-0 md:w-auto">
+            Filtrar
+          </Button>
+        </form>
 
-      {result.items.length === 0 ? (
-        <div className="text-muted-foreground flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed py-16">
-          <p className="max-w-sm text-center text-sm">
-            Nenhum cliente cadastrado.
-          </p>
-        </div>
-      ) : (
-        <div className="overflow-x-auto rounded-md border">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50">
-              <tr>
-                <th className="p-3 text-left font-medium">Nome</th>
-                <th className="p-3 text-left font-medium">CPF/CNPJ</th>
-                <th className="p-3 text-left font-medium">Telefone</th>
-                <th className="p-3 text-left font-medium">Email</th>
-                <th className="p-3 text-left font-medium">Cidade/UF</th>
-                <th className="p-3 text-left font-medium">Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {result.items.map((row) => {
-                const cityUf = [row.addressCity, row.addressState]
-                  .filter(Boolean)
-                  .join(' / ');
-                return (
-                  <tr key={row.id} className="border-t">
-                    <td className="p-3 font-medium">{row.name}</td>
-                    <td className="p-3">{formatCpfCnpj(row.cpfCnpj)}</td>
-                    <td className="p-3">{formatPhone(row.phone)}</td>
-                    <td className="p-3">{row.email ?? '—'}</td>
-                    <td className="p-3">{cityUf || '—'}</td>
-                    <td className="p-3">
-                      <Link
-                        href={`/${orgSlug}/customers/${row.id}`}
-                        className="text-primary font-medium underline-offset-4 hover:underline"
-                      >
-                        Ver
-                      </Link>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
+        {result.items.length === 0 ? (
+          <div className="p-6">
+            <ListPageEmpty>
+              <p className="max-w-sm text-center text-sm">
+                Nenhum cliente cadastrado.
+              </p>
+            </ListPageEmpty>
+          </div>
+        ) : (
+          <ListTableWrap>
+            <ListTable>
+              <ListTableHeader>
+                <ListTableHeadCell>Nome</ListTableHeadCell>
+                <ListTableHeadCell>CPF/CNPJ</ListTableHeadCell>
+                <ListTableHeadCell>Telefone</ListTableHeadCell>
+                <ListTableHeadCell>Email</ListTableHeadCell>
+                <ListTableHeadCell>Cidade/UF</ListTableHeadCell>
+                <ListTableHeadCell>Ações</ListTableHeadCell>
+              </ListTableHeader>
+              <ListTableBody>
+                {result.items.map((row) => {
+                  const cityUf = [row.addressCity, row.addressState]
+                    .filter(Boolean)
+                    .join(' / ');
+                  return (
+                    <ListTableRow key={row.id}>
+                      <ListTableCell className="font-medium">
+                        {row.name}
+                      </ListTableCell>
+                      <ListTableCell>{formatCpfCnpj(row.cpfCnpj)}</ListTableCell>
+                      <ListTableCell>{formatPhone(row.phone)}</ListTableCell>
+                      <ListTableCell>{row.email ?? '—'}</ListTableCell>
+                      <ListTableCell>{cityUf || '—'}</ListTableCell>
+                      <ListTableCell>
+                        <Link
+                          href={`/${orgSlug}/customers/${row.id}`}
+                          className="text-primary font-medium underline-offset-4 hover:underline"
+                        >
+                          Ver
+                        </Link>
+                      </ListTableCell>
+                    </ListTableRow>
+                  );
+                })}
+              </ListTableBody>
+            </ListTable>
+          </ListTableWrap>
+        )}
+      </DataListCard>
 
       {result.total > 0 ? (
         <div className="text-muted-foreground flex flex-wrap items-center justify-between gap-3 text-sm">
@@ -175,12 +222,13 @@ export default async function CustomersListPage({
                 href={`/${orgSlug}/customers?${prevQs.toString()}`}
                 className={cn(
                   buttonVariants({ variant: 'outline', size: 'sm' }),
+                  'rounded-full',
                 )}
               >
                 Anterior
               </Link>
             ) : (
-              <Button variant="outline" size="sm" disabled>
+              <Button variant="outline" size="sm" className="rounded-full" disabled>
                 Anterior
               </Button>
             )}
@@ -189,12 +237,13 @@ export default async function CustomersListPage({
                 href={`/${orgSlug}/customers?${nextQs.toString()}`}
                 className={cn(
                   buttonVariants({ variant: 'outline', size: 'sm' }),
+                  'rounded-full',
                 )}
               >
                 Próxima
               </Link>
             ) : (
-              <Button variant="outline" size="sm" disabled>
+              <Button variant="outline" size="sm" className="rounded-full" disabled>
                 Próxima
               </Button>
             )}

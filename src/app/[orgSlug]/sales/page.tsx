@@ -8,10 +8,24 @@ import {
   saleFiltersToSearchParams,
 } from '@/modules/sales/search-params';
 import { SaleStatusBadge } from '@/components/sales/sale-status-badge';
+import { DataListCard } from '@/components/layout/data-list-card';
+import {
+  ListPageEmpty,
+  ListTable,
+  ListTableBody,
+  ListTableCell,
+  ListTableHeadCell,
+  ListTableHeader,
+  ListTableRow,
+  ListTableWrap,
+  listPageNativeSelectClass,
+} from '@/components/layout/list-table';
+import { PageHeader } from '@/components/layout/page-header';
 import { Button, buttonVariants } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
-import { ShoppingCart } from 'lucide-react';
+import { LUCIDE_STROKE_THIN } from '@/lib/ui/lucide';
+import { cn } from '@/lib/utils';
+import { Search, ShoppingCart } from 'lucide-react';
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 
@@ -85,155 +99,200 @@ export default async function SalesListPage({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">Vendas</h1>
-      </div>
+      <PageHeader
+        breadcrumbs={
+          <>
+            <span className="font-medium text-foreground">VrumCar</span>
+            <span className="mx-1.5">/</span>
+            <span>Vendas</span>
+          </>
+        }
+        title="Vendas"
+        description="Histórico de vendas fechadas — busque por cliente, veículo ou contrato."
+      />
 
-      <form method="GET" className="flex flex-col gap-4">
-        <div className="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-end">
-          <div className="min-w-[200px] flex-1 space-y-2">
-            <label htmlFor="search" className="text-sm font-medium">
-              Buscar
-            </label>
-            <Input
-              id="search"
-              name="search"
-              type="search"
-              placeholder="Cliente, veículo, contrato..."
-              defaultValue={filters.search ?? ''}
-            />
+      <DataListCard>
+        <form method="GET" className="flex flex-col">
+          <div className="flex flex-col gap-4 border-b border-border/50 bg-muted/15 px-4 py-5 md:px-6">
+            {result.total > 0 ? (
+              <p className="text-center text-sm text-muted-foreground md:text-left">
+                {result.total} venda{result.total !== 1 ? 's' : ''} registrada
+                {result.total !== 1 ? 's' : ''}
+              </p>
+            ) : null}
+            <div className="flex flex-col gap-4 lg:flex-row lg:flex-wrap lg:items-end">
+              <div className="relative min-w-[220px] flex-1">
+                <label htmlFor="search" className="sr-only">
+                  Buscar
+                </label>
+                <Search
+                  className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground"
+                  strokeWidth={LUCIDE_STROKE_THIN}
+                  aria-hidden
+                />
+                <Input
+                  id="search"
+                  name="search"
+                  type="search"
+                  variant="pill"
+                  className="pl-10"
+                  placeholder="Cliente, veículo, contrato..."
+                  defaultValue={filters.search ?? ''}
+                />
+              </div>
+              <div className="min-w-[160px] space-y-1.5">
+                <label
+                  htmlFor="status"
+                  className="text-xs font-medium text-muted-foreground"
+                >
+                  Status
+                </label>
+                <select
+                  id="status"
+                  name="status"
+                  className={listPageNativeSelectClass}
+                  defaultValue={filters.status ?? ''}
+                >
+                  {STATUS_OPTIONS.map((o) => (
+                    <option key={o.value || 'all'} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="min-w-[200px] space-y-1.5">
+                <label
+                  htmlFor="paymentMethod"
+                  className="text-xs font-medium text-muted-foreground"
+                >
+                  Forma de pagamento
+                </label>
+                <select
+                  id="paymentMethod"
+                  name="paymentMethod"
+                  className={listPageNativeSelectClass}
+                  defaultValue={filters.paymentMethod ?? ''}
+                >
+                  {PAYMENT_OPTIONS.map((o) => (
+                    <option key={o.value || 'all'} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="min-w-[180px] space-y-1.5">
+                <label
+                  htmlFor="orderBy"
+                  className="text-xs font-medium text-muted-foreground"
+                >
+                  Ordenar por
+                </label>
+                <select
+                  id="orderBy"
+                  name="orderBy"
+                  className={listPageNativeSelectClass}
+                  defaultValue={filters.orderBy}
+                >
+                  {ORDER_BY_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="min-w-[140px] space-y-1.5">
+                <label
+                  htmlFor="orderDir"
+                  className="text-xs font-medium text-muted-foreground"
+                >
+                  Direção
+                </label>
+                <select
+                  id="orderDir"
+                  name="orderDir"
+                  className={listPageNativeSelectClass}
+                  defaultValue={filters.orderDir}
+                >
+                  <option value="desc">Decrescente</option>
+                  <option value="asc">Crescente</option>
+                </select>
+              </div>
+              <input type="hidden" name="page" value="1" />
+              <input
+                type="hidden"
+                name="pageSize"
+                value={String(filters.pageSize)}
+              />
+              <Button type="submit" size="pill" className="w-full sm:w-auto">
+                Filtrar
+              </Button>
+            </div>
           </div>
-          <div className="min-w-[160px] space-y-2">
-            <label htmlFor="status" className="text-sm font-medium">
-              Status
-            </label>
-            <select
-              id="status"
-              name="status"
-              className="border-input bg-background h-10 w-full rounded-md border px-3 text-sm"
-              defaultValue={filters.status ?? ''}
-            >
-              {STATUS_OPTIONS.map((o) => (
-                <option key={o.value || 'all'} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="min-w-[200px] space-y-2">
-            <label htmlFor="paymentMethod" className="text-sm font-medium">
-              Forma de pagamento
-            </label>
-            <select
-              id="paymentMethod"
-              name="paymentMethod"
-              className="border-input bg-background h-10 w-full rounded-md border px-3 text-sm"
-              defaultValue={filters.paymentMethod ?? ''}
-            >
-              {PAYMENT_OPTIONS.map((o) => (
-                <option key={o.value || 'all'} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="min-w-[180px] space-y-2">
-            <label htmlFor="orderBy" className="text-sm font-medium">
-              Ordenar por
-            </label>
-            <select
-              id="orderBy"
-              name="orderBy"
-              className="border-input bg-background h-10 w-full rounded-md border px-3 text-sm"
-              defaultValue={filters.orderBy}
-            >
-              {ORDER_BY_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="min-w-[140px] space-y-2">
-            <label htmlFor="orderDir" className="text-sm font-medium">
-              Direção
-            </label>
-            <select
-              id="orderDir"
-              name="orderDir"
-              className="border-input bg-background h-10 w-full rounded-md border px-3 text-sm"
-              defaultValue={filters.orderDir}
-            >
-              <option value="desc">Decrescente</option>
-              <option value="asc">Crescente</option>
-            </select>
-          </div>
-          <input type="hidden" name="page" value="1" />
-          <input
-            type="hidden"
-            name="pageSize"
-            value={String(filters.pageSize)}
-          />
-          <Button type="submit">Filtrar</Button>
-        </div>
-      </form>
+        </form>
 
-      {result.items.length === 0 ? (
-        <div className="text-muted-foreground flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed py-16">
-          <ShoppingCart className="size-12 opacity-50" aria-hidden />
-          <p className="max-w-md text-center text-sm">
-            Nenhuma venda registrada ainda. As vendas aparecem aqui quando você
-            fecha uma venda a partir de um lead.
-          </p>
-        </div>
-      ) : (
-        <div className="overflow-x-auto rounded-md border">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50">
-              <tr>
-                <th className="p-3 text-left font-medium">Data</th>
-                <th className="p-3 text-left font-medium">Cliente</th>
-                <th className="p-3 text-left font-medium">Veículo</th>
-                <th className="p-3 text-left font-medium">Vendedor</th>
-                <th className="p-3 text-left font-medium">Valor final</th>
-                <th className="p-3 text-left font-medium">Status</th>
-                <th className="p-3 text-left font-medium">Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {result.items.map((row) => (
-                <tr key={row.id} className="border-t">
-                  <td className="p-3 whitespace-nowrap">
-                    {formatDate(row.soldAt)}
-                  </td>
-                  <td className="p-3 font-medium">{row.customer.name}</td>
-                  <td className="p-3">
-                    {row.vehicle.brand} {row.vehicle.model}{' '}
-                    {row.vehicle.year ?? ''}
-                  </td>
-                  <td className="p-3">
-                    {row.salesPerson.name ?? '—'}
-                  </td>
-                  <td className="p-3 whitespace-nowrap">
-                    {formatPriceBRL(row.finalPriceCents)}
-                  </td>
-                  <td className="p-3">
-                    <SaleStatusBadge status={row.status} />
-                  </td>
-                  <td className="p-3">
-                    <Link
-                      href={`/${orgSlug}/sales/${row.id}`}
-                      className="text-primary font-medium underline-offset-4 hover:underline"
-                    >
-                      Ver
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+        {result.items.length === 0 ? (
+          <div className="p-6">
+            <ListPageEmpty>
+              <ShoppingCart
+                className="size-12 opacity-50"
+                strokeWidth={LUCIDE_STROKE_THIN}
+                aria-hidden
+              />
+              <p className="max-w-md text-center text-sm">
+                Nenhuma venda registrada ainda. As vendas aparecem aqui quando
+                você fecha uma venda a partir de um lead.
+              </p>
+            </ListPageEmpty>
+          </div>
+        ) : (
+          <ListTableWrap>
+            <ListTable>
+              <ListTableHeader>
+                <ListTableHeadCell>Data</ListTableHeadCell>
+                <ListTableHeadCell>Cliente</ListTableHeadCell>
+                <ListTableHeadCell>Veículo</ListTableHeadCell>
+                <ListTableHeadCell>Vendedor</ListTableHeadCell>
+                <ListTableHeadCell>Valor final</ListTableHeadCell>
+                <ListTableHeadCell>Status</ListTableHeadCell>
+                <ListTableHeadCell>Ações</ListTableHeadCell>
+              </ListTableHeader>
+              <ListTableBody>
+                {result.items.map((row) => (
+                  <ListTableRow key={row.id}>
+                    <ListTableCell className="whitespace-nowrap">
+                      {formatDate(row.soldAt)}
+                    </ListTableCell>
+                    <ListTableCell className="font-medium">
+                      {row.customer.name}
+                    </ListTableCell>
+                    <ListTableCell>
+                      {row.vehicle.brand} {row.vehicle.model}{' '}
+                      {row.vehicle.year ?? ''}
+                    </ListTableCell>
+                    <ListTableCell>
+                      {row.salesPerson.name ?? '—'}
+                    </ListTableCell>
+                    <ListTableCell className="whitespace-nowrap">
+                      {formatPriceBRL(row.finalPriceCents)}
+                    </ListTableCell>
+                    <ListTableCell>
+                      <SaleStatusBadge status={row.status} />
+                    </ListTableCell>
+                    <ListTableCell>
+                      <Link
+                        href={`/${orgSlug}/sales/${row.id}`}
+                        className="text-primary font-medium underline-offset-4 hover:underline"
+                      >
+                        Ver
+                      </Link>
+                    </ListTableCell>
+                  </ListTableRow>
+                ))}
+              </ListTableBody>
+            </ListTable>
+          </ListTableWrap>
+        )}
+      </DataListCard>
 
       {result.total > 0 ? (
         <div className="text-muted-foreground flex flex-wrap items-center justify-between gap-3 text-sm">
@@ -246,12 +305,13 @@ export default async function SalesListPage({
                 href={`/${orgSlug}/sales?${prevQs.toString()}`}
                 className={cn(
                   buttonVariants({ variant: 'outline', size: 'sm' }),
+                  'rounded-full',
                 )}
               >
                 Anterior
               </Link>
             ) : (
-              <Button variant="outline" size="sm" disabled>
+              <Button variant="outline" size="sm" className="rounded-full" disabled>
                 Anterior
               </Button>
             )}
@@ -260,12 +320,13 @@ export default async function SalesListPage({
                 href={`/${orgSlug}/sales?${nextQs.toString()}`}
                 className={cn(
                   buttonVariants({ variant: 'outline', size: 'sm' }),
+                  'rounded-full',
                 )}
               >
                 Próxima
               </Link>
             ) : (
-              <Button variant="outline" size="sm" disabled>
+              <Button variant="outline" size="sm" className="rounded-full" disabled>
                 Próxima
               </Button>
             )}

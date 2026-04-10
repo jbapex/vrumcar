@@ -7,10 +7,24 @@ import {
   parseVehicleFiltersFromSearchParams,
 } from '@/modules/vehicles/search-params';
 import { VehicleStatusBadge } from '@/components/vehicles/status-badge';
+import { DataListCard } from '@/components/layout/data-list-card';
+import {
+  ListPageEmpty,
+  ListTable,
+  ListTableBody,
+  ListTableCell,
+  ListTableHeadCell,
+  ListTableHeader,
+  ListTableRow,
+  ListTableWrap,
+  listPageNativeSelectClass,
+} from '@/components/layout/list-table';
+import { PageHeader } from '@/components/layout/page-header';
 import { Button, buttonVariants } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
-import { Car } from 'lucide-react';
+import { LUCIDE_STROKE_THIN } from '@/lib/ui/lucide';
+import { cn } from '@/lib/utils';
+import { Car, Plus, Search } from 'lucide-react';
 import Link from 'next/link';
 import { redirect, notFound } from 'next/navigation';
 
@@ -66,166 +80,212 @@ export default async function VehiclesListPage({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">Estoque</h1>
+      <PageHeader
+        breadcrumbs={
+          <>
+            <span className="font-medium text-foreground">VrumCar</span>
+            <span className="mx-1.5">/</span>
+            <span>Estoque</span>
+          </>
+        }
+        title="Estoque"
+        description="Catálogo de veículos da sua loja — busque, filtre e acompanhe status."
+      >
         <div className="flex flex-wrap gap-2">
           <Link
             href={`/${orgSlug}/vehicles/export?${exportQs.toString()}`}
-            className={cn(buttonVariants())}
+            className={cn(
+              buttonVariants({ variant: 'outline', size: 'pill' }),
+            )}
           >
             Exportar CSV
           </Link>
           <Link
             href={`/${orgSlug}/vehicles/new`}
-            className={cn(buttonVariants())}
+            className={cn(buttonVariants({ size: 'pill' }), 'gap-2')}
           >
-            + Novo veículo
+            <Plus className="size-4" strokeWidth={LUCIDE_STROKE_THIN} />
+            Novo veículo
           </Link>
         </div>
-      </div>
+      </PageHeader>
 
-      <form method="GET" className="flex flex-col gap-4">
-        <div className="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-end">
-          <div className="min-w-[200px] flex-1 space-y-2">
-            <label htmlFor="search" className="text-sm font-medium">
-              Buscar
-            </label>
-            <Input
-              id="search"
-              name="search"
-              placeholder="Marca, modelo, placa…"
-              defaultValue={filters.search ?? ''}
-            />
+      <DataListCard>
+        <form method="GET" className="flex flex-col">
+          <div className="flex flex-col gap-4 border-b border-border/50 bg-muted/15 px-4 py-5 md:px-6">
+            {result.total > 0 ? (
+              <p className="text-center text-sm text-muted-foreground md:text-left">
+                {result.total} veículo{result.total !== 1 ? 's' : ''} no
+                catálogo
+              </p>
+            ) : null}
+            <div className="flex flex-col gap-4 lg:flex-row lg:flex-wrap lg:items-end">
+              <div className="relative min-w-[220px] flex-1">
+                <label htmlFor="search" className="sr-only">
+                  Buscar
+                </label>
+                <Search
+                  className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground"
+                  strokeWidth={LUCIDE_STROKE_THIN}
+                  aria-hidden
+                />
+                <Input
+                  id="search"
+                  name="search"
+                  variant="pill"
+                  className="pl-10"
+                  placeholder="Marca, modelo, placa…"
+                  defaultValue={filters.search ?? ''}
+                />
+              </div>
+              <div className="w-full min-w-[160px] space-y-1.5 sm:w-48">
+                <label
+                  htmlFor="status"
+                  className="text-xs font-medium text-muted-foreground"
+                >
+                  Status
+                </label>
+                <select
+                  id="status"
+                  name="status"
+                  className={listPageNativeSelectClass}
+                  defaultValue={filters.status ?? ''}
+                >
+                  <option value="">Todos</option>
+                  <option value="AVAILABLE">Disponível</option>
+                  <option value="RESERVED">Reservado</option>
+                  <option value="SOLD">Vendido</option>
+                  <option value="IN_PREPARATION">Em preparação</option>
+                  <option value="IN_MAINTENANCE">Em manutenção</option>
+                  <option value="INACTIVE">Inativo</option>
+                </select>
+              </div>
+              <div className="w-full min-w-[180px] space-y-1.5 sm:w-56">
+                <label
+                  htmlFor="orderBy"
+                  className="text-xs font-medium text-muted-foreground"
+                >
+                  Ordenar por
+                </label>
+                <select
+                  id="orderBy"
+                  name="orderBy"
+                  className={listPageNativeSelectClass}
+                  defaultValue={filters.orderBy}
+                >
+                  <option value="createdAt">Data de cadastro</option>
+                  <option value="updatedAt">Última atualização</option>
+                  <option value="salePriceCents">Preço</option>
+                  <option value="brand">Marca</option>
+                  <option value="year">Ano</option>
+                  <option value="mileageKm">Quilometragem</option>
+                </select>
+              </div>
+              <div className="w-full min-w-[140px] space-y-1.5 sm:w-40">
+                <label
+                  htmlFor="orderDir"
+                  className="text-xs font-medium text-muted-foreground"
+                >
+                  Direção
+                </label>
+                <select
+                  id="orderDir"
+                  name="orderDir"
+                  className={listPageNativeSelectClass}
+                  defaultValue={filters.orderDir}
+                >
+                  <option value="desc">Decrescente</option>
+                  <option value="asc">Crescente</option>
+                </select>
+              </div>
+              <input type="hidden" name="page" value="1" />
+              <Button type="submit" size="pill" className="w-full sm:w-auto">
+                Filtrar
+              </Button>
+            </div>
           </div>
-          <div className="w-full min-w-[160px] space-y-2 sm:w-48">
-            <label htmlFor="status" className="text-sm font-medium">
-              Status
-            </label>
-            <select
-              id="status"
-              name="status"
-              className="border-input bg-background h-10 w-full rounded-md border px-3 text-sm"
-              defaultValue={filters.status ?? ''}
-            >
-              <option value="">Todos</option>
-              <option value="AVAILABLE">Disponível</option>
-              <option value="RESERVED">Reservado</option>
-              <option value="SOLD">Vendido</option>
-              <option value="IN_PREPARATION">Em preparação</option>
-              <option value="IN_MAINTENANCE">Em manutenção</option>
-              <option value="INACTIVE">Inativo</option>
-            </select>
-          </div>
-          <div className="w-full min-w-[180px] space-y-2 sm:w-56">
-            <label htmlFor="orderBy" className="text-sm font-medium">
-              Ordenar por
-            </label>
-            <select
-              id="orderBy"
-              name="orderBy"
-              className="border-input bg-background h-10 w-full rounded-md border px-3 text-sm"
-              defaultValue={filters.orderBy}
-            >
-              <option value="createdAt">Data de cadastro</option>
-              <option value="updatedAt">Última atualização</option>
-              <option value="salePriceCents">Preço</option>
-              <option value="brand">Marca</option>
-              <option value="year">Ano</option>
-              <option value="mileageKm">Quilometragem</option>
-            </select>
-          </div>
-          <div className="w-full min-w-[140px] space-y-2 sm:w-40">
-            <label htmlFor="orderDir" className="text-sm font-medium">
-              Direção
-            </label>
-            <select
-              id="orderDir"
-              name="orderDir"
-              className="border-input bg-background h-10 w-full rounded-md border px-3 text-sm"
-              defaultValue={filters.orderDir}
-            >
-              <option value="desc">Decrescente</option>
-              <option value="asc">Crescente</option>
-            </select>
-          </div>
-          <input type="hidden" name="page" value="1" />
-          <Button type="submit">Filtrar</Button>
-        </div>
-      </form>
+        </form>
 
-      {result.items.length === 0 ? (
-        <div className="text-muted-foreground flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed py-16">
-          <Car className="size-12 opacity-50" aria-hidden />
-          <p className="max-w-sm text-center text-sm">
-            Nenhum veículo cadastrado. Clique em &quot;Novo veículo&quot; pra
-            começar.
-          </p>
-        </div>
-      ) : (
-        <div className="overflow-x-auto rounded-md border">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50">
-              <tr>
-                <th className="p-3 text-left font-medium">Foto</th>
-                <th className="p-3 text-left font-medium">Marca / Modelo</th>
-                <th className="p-3 text-left font-medium">Ano</th>
-                <th className="p-3 text-left font-medium">KM</th>
-                <th className="p-3 text-left font-medium">Preço</th>
-                <th className="p-3 text-left font-medium">Status</th>
-                <th className="p-3 text-left font-medium">Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {result.items.map((row) => {
-                const cover = row.photos[0];
-                return (
-                  <tr key={row.id} className="border-t">
-                    <td className="p-3">
-                      {cover ? (
-                        // eslint-disable-next-line @next/next/no-img-element -- URLs MinIO externas
-                        <img
-                          src={cover.url}
-                          alt=""
-                          width={60}
-                          height={60}
-                          className="size-[60px] rounded-md object-cover"
-                        />
-                      ) : (
-                        <div className="bg-muted flex size-[60px] items-center justify-center rounded-md text-xs text-muted-foreground">
-                          —
-                        </div>
-                      )}
-                    </td>
-                    <td className="p-3">
-                      <div className="font-medium">{row.brand}</div>
-                      <div className="text-muted-foreground">{row.model}</div>
-                      {row.version ? (
-                        <div className="text-muted-foreground text-xs">
-                          {row.version}
-                        </div>
-                      ) : null}
-                    </td>
-                    <td className="p-3">{row.year ?? '—'}</td>
-                    <td className="p-3">{formatKm(row.mileageKm)}</td>
-                    <td className="p-3">{formatPriceBRL(row.salePriceCents)}</td>
-                    <td className="p-3">
-                      <VehicleStatusBadge status={row.status} />
-                    </td>
-                    <td className="p-3">
-                      <Link
-                        href={`/${orgSlug}/vehicles/${row.id}`}
-                        className="text-primary font-medium underline-offset-4 hover:underline"
-                      >
-                        Ver
-                      </Link>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
+        {result.items.length === 0 ? (
+          <div className="p-6">
+            <ListPageEmpty>
+              <Car
+                className="size-12 opacity-50"
+                strokeWidth={LUCIDE_STROKE_THIN}
+                aria-hidden
+              />
+              <p className="max-w-sm text-center text-sm">
+                Nenhum veículo cadastrado. Use &quot;Novo veículo&quot; pra
+                começar.
+              </p>
+            </ListPageEmpty>
+          </div>
+        ) : (
+          <ListTableWrap>
+            <ListTable>
+              <ListTableHeader>
+                <ListTableHeadCell>Foto</ListTableHeadCell>
+                <ListTableHeadCell>Marca / modelo</ListTableHeadCell>
+                <ListTableHeadCell>Ano</ListTableHeadCell>
+                <ListTableHeadCell>KM</ListTableHeadCell>
+                <ListTableHeadCell>Preço</ListTableHeadCell>
+                <ListTableHeadCell>Status</ListTableHeadCell>
+                <ListTableHeadCell>Ações</ListTableHeadCell>
+              </ListTableHeader>
+              <ListTableBody>
+                {result.items.map((row) => {
+                  const cover = row.photos[0];
+                  return (
+                    <ListTableRow key={row.id}>
+                      <ListTableCell>
+                        {cover ? (
+                          // eslint-disable-next-line @next/next/no-img-element -- URLs MinIO externas
+                          <img
+                            src={cover.url}
+                            alt=""
+                            width={60}
+                            height={60}
+                            className="size-[60px] rounded-xl object-cover"
+                          />
+                        ) : (
+                          <div className="bg-muted flex size-[60px] items-center justify-center rounded-xl text-xs text-muted-foreground">
+                            —
+                          </div>
+                        )}
+                      </ListTableCell>
+                      <ListTableCell>
+                        <div className="font-medium">{row.brand}</div>
+                        <div className="text-muted-foreground">{row.model}</div>
+                        {row.version ? (
+                          <div className="text-muted-foreground text-xs">
+                            {row.version}
+                          </div>
+                        ) : null}
+                      </ListTableCell>
+                      <ListTableCell>{row.year ?? '—'}</ListTableCell>
+                      <ListTableCell>{formatKm(row.mileageKm)}</ListTableCell>
+                      <ListTableCell>
+                        {formatPriceBRL(row.salePriceCents)}
+                      </ListTableCell>
+                      <ListTableCell>
+                        <VehicleStatusBadge status={row.status} />
+                      </ListTableCell>
+                      <ListTableCell>
+                        <Link
+                          href={`/${orgSlug}/vehicles/${row.id}`}
+                          className="text-primary font-medium underline-offset-4 hover:underline"
+                        >
+                          Ver
+                        </Link>
+                      </ListTableCell>
+                    </ListTableRow>
+                  );
+                })}
+              </ListTableBody>
+            </ListTable>
+          </ListTableWrap>
+        )}
+      </DataListCard>
 
       {result.total > 0 ? (
         <div className="text-muted-foreground flex flex-wrap items-center justify-between gap-3 text-sm">
@@ -236,24 +296,30 @@ export default async function VehiclesListPage({
             {prevQs ? (
               <Link
                 href={`/${orgSlug}/vehicles?${prevQs.toString()}`}
-                className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}
+                className={cn(
+                  buttonVariants({ variant: 'outline', size: 'sm' }),
+                  'rounded-full',
+                )}
               >
                 Anterior
               </Link>
             ) : (
-              <Button variant="outline" size="sm" disabled>
+              <Button variant="outline" size="sm" className="rounded-full" disabled>
                 Anterior
               </Button>
             )}
             {nextQs ? (
               <Link
                 href={`/${orgSlug}/vehicles?${nextQs.toString()}`}
-                className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}
+                className={cn(
+                  buttonVariants({ variant: 'outline', size: 'sm' }),
+                  'rounded-full',
+                )}
               >
                 Próxima
               </Link>
             ) : (
-              <Button variant="outline" size="sm" disabled>
+              <Button variant="outline" size="sm" className="rounded-full" disabled>
                 Próxima
               </Button>
             )}

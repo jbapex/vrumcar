@@ -28,8 +28,8 @@ export function AppShell({
 
   return (
     <TooltipProvider delay={300}>
-      <div className="flex min-h-screen w-full">
-        <aside className="sticky top-0 hidden h-screen shrink-0 md:block">
+      <div className="bg-page-canvas flex min-h-screen w-full">
+        <aside className="bg-sidebar sticky top-0 hidden h-screen shrink-0 overflow-hidden rounded-tr-4xl border-r border-white/10 md:block">
           <Sidebar
             orgSlug={orgSlug}
             orgName={orgName}
@@ -41,7 +41,7 @@ export function AppShell({
         <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
           <SheetContent
             side="left"
-            className="flex w-[min(18rem,100vw)] flex-col border-r p-0"
+            className="flex w-[min(18rem,100vw)] flex-col border-r border-sidebar-border bg-sidebar p-0"
             showCloseButton
           >
             <Sidebar
@@ -62,7 +62,9 @@ export function AppShell({
             userEmail={userEmail}
             onOpenMobileMenu={() => setMobileOpen(true)}
           />
-          <main className="flex-1 overflow-y-auto p-6">{children}</main>
+          <main className="flex-1 overflow-y-auto p-6">
+            {children}
+          </main>
         </div>
       </div>
     </TooltipProvider>

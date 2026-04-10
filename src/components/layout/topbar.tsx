@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { logoutAction } from '@/app/[orgSlug]/dashboard/actions';
+import { LUCIDE_STROKE_THIN } from '@/lib/ui/lucide';
 
 type TopbarProps = {
   orgSlug: string;
@@ -45,7 +46,7 @@ export function Topbar({
   const ini = initials(userName || userEmail, userEmail);
 
   return (
-    <header className="flex h-16 shrink-0 items-center justify-between border-b bg-background px-4">
+    <header className="flex h-16 shrink-0 items-center justify-between border-b border-border/60 bg-card px-4">
       <div className="flex min-w-0 items-center gap-3">
         <Button
           type="button"
@@ -55,7 +56,7 @@ export function Topbar({
           onClick={onOpenMobileMenu}
           aria-label="Abrir menu"
         >
-          <Menu className="size-5" />
+          <Menu className="size-5" strokeWidth={LUCIDE_STROKE_THIN} />
         </Button>
         <p className="truncate text-sm text-muted-foreground">
           <span className="font-medium text-foreground">VrumCar</span>

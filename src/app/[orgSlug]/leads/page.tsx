@@ -9,10 +9,24 @@ import {
 } from '@/modules/leads/search-params';
 import { LeadPriorityBadge } from '@/components/leads/priority-badge';
 import { LeadStatusBadge } from '@/components/leads/status-badge';
+import { DataListCard } from '@/components/layout/data-list-card';
+import {
+  ListPageEmpty,
+  ListTable,
+  ListTableBody,
+  ListTableCell,
+  ListTableHeadCell,
+  ListTableHeader,
+  ListTableRow,
+  ListTableWrap,
+  listPageNativeSelectClass,
+} from '@/components/layout/list-table';
+import { PageHeader } from '@/components/layout/page-header';
 import { Button, buttonVariants } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
-import { Users } from 'lucide-react';
+import { LUCIDE_STROKE_THIN } from '@/lib/ui/lucide';
+import { cn } from '@/lib/utils';
+import { Plus, Search, Users } from 'lucide-react';
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 
@@ -103,179 +117,227 @@ export default async function LeadsListPage({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">Leads</h1>
-        <Link href={`/${orgSlug}/leads/new`} className={cn(buttonVariants())}>
-          + Novo lead
+      <PageHeader
+        breadcrumbs={
+          <>
+            <span className="font-medium text-foreground">VrumCar</span>
+            <span className="mx-1.5">/</span>
+            <span>Leads</span>
+          </>
+        }
+        title="Leads"
+        description="Oportunidades e contatos — priorize, filtre e acompanhe o funil."
+      >
+        <Link
+          href={`/${orgSlug}/leads/new`}
+          className={cn(buttonVariants({ size: 'pill' }), 'gap-2')}
+        >
+          <Plus className="size-4" strokeWidth={LUCIDE_STROKE_THIN} />
+          Novo lead
         </Link>
-      </div>
+      </PageHeader>
 
-      <form method="GET" className="flex flex-col gap-4">
-        <div className="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-end">
-          <div className="min-w-[200px] flex-1 space-y-2">
-            <label htmlFor="search" className="text-sm font-medium">
-              Buscar
-            </label>
-            <Input
-              id="search"
-              name="search"
-              placeholder="Nome, telefone, email…"
-              defaultValue={filters.search ?? ''}
-            />
+      <DataListCard>
+        <form method="GET" className="flex flex-col">
+          <div className="flex flex-col gap-4 border-b border-border/50 bg-muted/15 px-4 py-5 md:px-6">
+            {result.total > 0 ? (
+              <p className="text-center text-sm text-muted-foreground md:text-left">
+                {result.total} lead{result.total !== 1 ? 's' : ''} encontrado
+                {result.total !== 1 ? 's' : ''}
+              </p>
+            ) : null}
+            <div className="flex flex-col gap-4 lg:flex-row lg:flex-wrap lg:items-end">
+              <div className="relative min-w-[220px] flex-1">
+                <label htmlFor="search" className="sr-only">
+                  Buscar
+                </label>
+                <Search
+                  className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground"
+                  strokeWidth={LUCIDE_STROKE_THIN}
+                  aria-hidden
+                />
+                <Input
+                  id="search"
+                  name="search"
+                  variant="pill"
+                  className="pl-10"
+                  placeholder="Nome, telefone, email…"
+                  defaultValue={filters.search ?? ''}
+                />
+              </div>
+              <div className="w-full min-w-[160px] space-y-1.5 sm:w-48">
+                <label
+                  htmlFor="status"
+                  className="text-xs font-medium text-muted-foreground"
+                >
+                  Status
+                </label>
+                <select
+                  id="status"
+                  name="status"
+                  className={listPageNativeSelectClass}
+                  defaultValue={filters.status ?? ''}
+                >
+                  {STATUS_OPTIONS.map((o) => (
+                    <option key={o.value || 'all'} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="w-full min-w-[160px] space-y-1.5 sm:w-48">
+                <label
+                  htmlFor="source"
+                  className="text-xs font-medium text-muted-foreground"
+                >
+                  Origem
+                </label>
+                <select
+                  id="source"
+                  name="source"
+                  className={listPageNativeSelectClass}
+                  defaultValue={filters.source ?? ''}
+                >
+                  {SOURCE_OPTIONS.map((o) => (
+                    <option key={o.value || 'all-src'} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="w-full min-w-[140px] space-y-1.5 sm:w-40">
+                <label
+                  htmlFor="priority"
+                  className="text-xs font-medium text-muted-foreground"
+                >
+                  Prioridade
+                </label>
+                <select
+                  id="priority"
+                  name="priority"
+                  className={listPageNativeSelectClass}
+                  defaultValue={filters.priority ?? ''}
+                >
+                  {PRIORITY_OPTIONS.map((o) => (
+                    <option key={o.value || 'all-pri'} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="w-full min-w-[180px] space-y-1.5 sm:w-56">
+                <label
+                  htmlFor="orderBy"
+                  className="text-xs font-medium text-muted-foreground"
+                >
+                  Ordenar por
+                </label>
+                <select
+                  id="orderBy"
+                  name="orderBy"
+                  className={listPageNativeSelectClass}
+                  defaultValue={filters.orderBy}
+                >
+                  {ORDER_BY_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="w-full min-w-[140px] space-y-1.5 sm:w-40">
+                <label
+                  htmlFor="orderDir"
+                  className="text-xs font-medium text-muted-foreground"
+                >
+                  Direção
+                </label>
+                <select
+                  id="orderDir"
+                  name="orderDir"
+                  className={listPageNativeSelectClass}
+                  defaultValue={filters.orderDir}
+                >
+                  <option value="desc">Decrescente</option>
+                  <option value="asc">Crescente</option>
+                </select>
+              </div>
+              <input type="hidden" name="page" value="1" />
+              <input
+                type="hidden"
+                name="pageSize"
+                value={String(filters.pageSize)}
+              />
+              <Button type="submit" size="pill" className="w-full sm:w-auto">
+                Filtrar
+              </Button>
+            </div>
           </div>
-          <div className="w-full min-w-[160px] space-y-2 sm:w-48">
-            <label htmlFor="status" className="text-sm font-medium">
-              Status
-            </label>
-            <select
-              id="status"
-              name="status"
-              className="border-input bg-background h-10 w-full rounded-md border px-3 text-sm"
-              defaultValue={filters.status ?? ''}
-            >
-              {STATUS_OPTIONS.map((o) => (
-                <option key={o.value || 'all'} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="w-full min-w-[160px] space-y-2 sm:w-48">
-            <label htmlFor="source" className="text-sm font-medium">
-              Origem
-            </label>
-            <select
-              id="source"
-              name="source"
-              className="border-input bg-background h-10 w-full rounded-md border px-3 text-sm"
-              defaultValue={filters.source ?? ''}
-            >
-              {SOURCE_OPTIONS.map((o) => (
-                <option key={o.value || 'all-src'} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="w-full min-w-[140px] space-y-2 sm:w-40">
-            <label htmlFor="priority" className="text-sm font-medium">
-              Prioridade
-            </label>
-            <select
-              id="priority"
-              name="priority"
-              className="border-input bg-background h-10 w-full rounded-md border px-3 text-sm"
-              defaultValue={filters.priority ?? ''}
-            >
-              {PRIORITY_OPTIONS.map((o) => (
-                <option key={o.value || 'all-pri'} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="w-full min-w-[180px] space-y-2 sm:w-56">
-            <label htmlFor="orderBy" className="text-sm font-medium">
-              Ordenar por
-            </label>
-            <select
-              id="orderBy"
-              name="orderBy"
-              className="border-input bg-background h-10 w-full rounded-md border px-3 text-sm"
-              defaultValue={filters.orderBy}
-            >
-              {ORDER_BY_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="w-full min-w-[140px] space-y-2 sm:w-40">
-            <label htmlFor="orderDir" className="text-sm font-medium">
-              Direção
-            </label>
-            <select
-              id="orderDir"
-              name="orderDir"
-              className="border-input bg-background h-10 w-full rounded-md border px-3 text-sm"
-              defaultValue={filters.orderDir}
-            >
-              <option value="desc">Decrescente</option>
-              <option value="asc">Crescente</option>
-            </select>
-          </div>
-          <input type="hidden" name="page" value="1" />
-          <input
-            type="hidden"
-            name="pageSize"
-            value={String(filters.pageSize)}
-          />
-          <Button type="submit">Filtrar</Button>
-        </div>
-      </form>
+        </form>
 
-      {result.items.length === 0 ? (
-        <div className="text-muted-foreground flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed py-16">
-          <Users className="size-12 opacity-50" aria-hidden />
-          <p className="max-w-sm text-center text-sm">
-            Nenhum lead encontrado. Clique em &apos;+ Novo lead&apos; pra
-            começar.
-          </p>
-        </div>
-      ) : (
-        <div className="overflow-x-auto rounded-md border">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50">
-              <tr>
-                <th className="p-3 text-left font-medium">Nome</th>
-                <th className="p-3 text-left font-medium">Telefone</th>
-                <th className="p-3 text-left font-medium">Status</th>
-                <th className="p-3 text-left font-medium">Prioridade</th>
-                <th className="p-3 text-left font-medium">Origem</th>
-                <th className="p-3 text-left font-medium">Vendedor</th>
-                <th className="p-3 text-left font-medium">
-                  Veículo interesse
-                </th>
-                <th className="p-3 text-left font-medium">Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {result.items.map((row) => (
-                <tr key={row.id} className="border-t">
-                  <td className="p-3 font-medium">{row.name}</td>
-                  <td className="p-3">{formatPhone(row.phone)}</td>
-                  <td className="p-3">
-                    <LeadStatusBadge status={row.status} />
-                  </td>
-                  <td className="p-3">
-                    <LeadPriorityBadge priority={row.priority} />
-                  </td>
-                  <td className="p-3">
-                    {LEAD_SOURCE_LABELS[row.source]}
-                  </td>
-                  <td className="p-3">
-                    {row.assignedTo?.name ?? '—'}
-                  </td>
-                  <td className="p-3">
-                    {row.interestVehicle
-                      ? `${row.interestVehicle.brand} ${row.interestVehicle.model} ${row.interestVehicle.year ?? ''}`
-                      : '—'}
-                  </td>
-                  <td className="p-3">
-                    <Link
-                      href={`/${orgSlug}/leads/${row.id}`}
-                      className="text-primary font-medium underline-offset-4 hover:underline"
-                    >
-                      Ver
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+        {result.items.length === 0 ? (
+          <div className="p-6">
+            <ListPageEmpty>
+              <Users
+                className="size-12 opacity-50"
+                strokeWidth={LUCIDE_STROKE_THIN}
+                aria-hidden
+              />
+              <p className="max-w-sm text-center text-sm">
+                Nenhum lead encontrado. Use &quot;Novo lead&quot; pra começar.
+              </p>
+            </ListPageEmpty>
+          </div>
+        ) : (
+          <ListTableWrap>
+            <ListTable>
+              <ListTableHeader>
+                <ListTableHeadCell>Nome</ListTableHeadCell>
+                <ListTableHeadCell>Telefone</ListTableHeadCell>
+                <ListTableHeadCell>Status</ListTableHeadCell>
+                <ListTableHeadCell>Prioridade</ListTableHeadCell>
+                <ListTableHeadCell>Origem</ListTableHeadCell>
+                <ListTableHeadCell>Vendedor</ListTableHeadCell>
+                <ListTableHeadCell>Veículo interesse</ListTableHeadCell>
+                <ListTableHeadCell>Ações</ListTableHeadCell>
+              </ListTableHeader>
+              <ListTableBody>
+                {result.items.map((row) => (
+                  <ListTableRow key={row.id}>
+                    <ListTableCell className="font-medium">{row.name}</ListTableCell>
+                    <ListTableCell>{formatPhone(row.phone)}</ListTableCell>
+                    <ListTableCell>
+                      <LeadStatusBadge status={row.status} />
+                    </ListTableCell>
+                    <ListTableCell>
+                      <LeadPriorityBadge priority={row.priority} />
+                    </ListTableCell>
+                    <ListTableCell>
+                      {LEAD_SOURCE_LABELS[row.source]}
+                    </ListTableCell>
+                    <ListTableCell>
+                      {row.assignedTo?.name ?? '—'}
+                    </ListTableCell>
+                    <ListTableCell>
+                      {row.interestVehicle
+                        ? `${row.interestVehicle.brand} ${row.interestVehicle.model} ${row.interestVehicle.year ?? ''}`
+                        : '—'}
+                    </ListTableCell>
+                    <ListTableCell>
+                      <Link
+                        href={`/${orgSlug}/leads/${row.id}`}
+                        className="text-primary font-medium underline-offset-4 hover:underline"
+                      >
+                        Ver
+                      </Link>
+                    </ListTableCell>
+                  </ListTableRow>
+                ))}
+              </ListTableBody>
+            </ListTable>
+          </ListTableWrap>
+        )}
+      </DataListCard>
 
       {result.total > 0 ? (
         <div className="text-muted-foreground flex flex-wrap items-center justify-between gap-3 text-sm">
@@ -288,12 +350,13 @@ export default async function LeadsListPage({
                 href={`/${orgSlug}/leads?${prevQs.toString()}`}
                 className={cn(
                   buttonVariants({ variant: 'outline', size: 'sm' }),
+                  'rounded-full',
                 )}
               >
                 Anterior
               </Link>
             ) : (
-              <Button variant="outline" size="sm" disabled>
+              <Button variant="outline" size="sm" className="rounded-full" disabled>
                 Anterior
               </Button>
             )}
@@ -302,12 +365,13 @@ export default async function LeadsListPage({
                 href={`/${orgSlug}/leads?${nextQs.toString()}`}
                 className={cn(
                   buttonVariants({ variant: 'outline', size: 'sm' }),
+                  'rounded-full',
                 )}
               >
                 Próxima
               </Link>
             ) : (
-              <Button variant="outline" size="sm" disabled>
+              <Button variant="outline" size="sm" className="rounded-full" disabled>
                 Próxima
               </Button>
             )}
