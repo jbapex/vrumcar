@@ -20,17 +20,17 @@ export function PageHeader({
   children,
 }: PageHeaderProps) {
   return (
-    <div className={cn('mb-6 space-y-4', className)}>
+    <div className={cn('mb-4 space-y-2', className)}>
       {breadcrumbs ? (
-        <div className="text-sm text-muted-foreground">{breadcrumbs}</div>
+        <div className="text-xs text-muted-foreground">{breadcrumbs}</div>
       ) : null}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
-          <h1 className="text-2xl font-bold tracking-tight text-foreground md:text-3xl">
+          <h1 className="text-xl font-bold tracking-tight text-foreground md:text-2xl">
             {title}
           </h1>
           {description ? (
-            <p className="mt-1 max-w-2xl text-sm leading-relaxed text-muted-foreground md:text-base">
+            <p className="mt-0.5 max-w-2xl text-xs leading-relaxed text-muted-foreground md:text-sm">
               {description}
             </p>
           ) : null}

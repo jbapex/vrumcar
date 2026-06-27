@@ -1,5 +1,8 @@
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { DataListCard } from '@/components/layout/data-list-card';
+import { PageHeader } from '@/components/layout/page-header';
+import { listPageSectionClass } from '@/components/layout/list-table';
 import { VehicleDataForm } from '@/components/vehicles/vehicle-data-form';
 import { notFound, redirect } from 'next/navigation';
 
@@ -29,9 +32,24 @@ export default async function NewVehiclePage({
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
-      <h1 className="text-2xl font-bold tracking-tight">Novo veículo</h1>
-      <VehicleDataForm orgSlug={orgSlug} mode="create" />
+    <div className={listPageSectionClass}>
+      <PageHeader
+        breadcrumbs={
+          <>
+            <span className="font-medium text-foreground">VrumCar</span>
+            <span className="mx-1.5">/</span>
+            <span>Estoque</span>
+            <span className="mx-1.5">/</span>
+            <span>Novo</span>
+          </>
+        }
+        title="Novo veículo"
+        description="Cadastre um veículo no estoque da loja."
+      />
+
+      <DataListCard className="p-4 md:p-5">
+        <VehicleDataForm orgSlug={orgSlug} mode="create" />
+      </DataListCard>
     </div>
   );
 }

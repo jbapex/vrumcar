@@ -60,86 +60,98 @@ export function PhotoUploader({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+      <div className="flex flex-col gap-2 rounded-xl border border-dashed border-border/60 bg-muted/10 p-4 sm:flex-row sm:items-center">
         <input
           ref={inputRef}
           type="file"
           accept="image/*"
           multiple
-          className="text-sm"
+          className="text-xs file:mr-3 file:rounded-lg file:border-0 file:bg-primary file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-primary-foreground"
           disabled={uploading}
           onChange={(e) => void uploadFiles(e.target.files)}
         />
         {uploading ? (
-          <span className="text-muted-foreground text-sm">
+          <span className="text-muted-foreground text-xs">
             Enviando {progress.current} de {progress.total}…
           </span>
-        ) : null}
+        ) : (
+          <span className="text-muted-foreground text-xs">
+            JPG, PNG ou WebP — múltiplos arquivos permitidos.
+          </span>
+        )}
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {existingPhotos.map((photo) => (
-          <div
-            key={photo.id}
-            className={`relative overflow-hidden rounded-lg border-2 ${
-              photo.isCover
-                ? 'border-primary ring-primary/30 ring-2'
-                : 'border-transparent'
-            }`}
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={photo.url}
-              alt=""
-              className="aspect-video w-full object-cover"
-            />
-            {photo.isCover ? (
-              <span className="bg-primary text-primary-foreground absolute top-2 left-2 rounded px-2 py-0.5 text-xs font-medium">
-                Capa
-              </span>
-            ) : null}
-            <div className="flex flex-wrap gap-2 p-2">
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                disabled={pendingPhotoId === photo.id || photo.isCover}
-                onClick={() => {
-                  setPendingPhotoId(photo.id);
-                  startTransition(() => {
-                    void (async () => {
-                      await setPhotoCoverAction(orgSlug, photo.id, vehicleId);
-                      setPendingPhotoId(null);
-                      router.refresh();
-                    })();
-                  });
-                }}
-              >
-                Definir como capa
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={pendingPhotoId === photo.id}
-                onClick={() => {
-                  if (!confirm('Remover esta foto?')) return;
-                  setPendingPhotoId(photo.id);
-                  startTransition(() => {
-                    void (async () => {
-                      await removePhotoAction(orgSlug, photo.id, vehicleId);
-                      setPendingPhotoId(null);
-                      router.refresh();
-                    })();
-                  });
-                }}
-              >
-                Remover
-              </Button>
+      {existingPhotos.length === 0 ? (
+        <p className="text-muted-foreground text-center text-xs">
+          Nenhuma foto cadastrada.
+        </p>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {existingPhotos.map((photo) => (
+            <div
+              key={photo.id}
+              className={`relative overflow-hidden rounded-lg border ${
+                photo.isCover
+                  ? 'border-primary ring-1 ring-primary/30'
+                  : 'border-border/60'
+              }`}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={photo.url}
+                alt=""
+                className="aspect-video w-full object-cover"
+              />
+              {photo.isCover ? (
+                <span className="bg-primary text-primary-foreground absolute top-2 left-2 rounded px-1.5 py-0.5 text-[0.6875rem] font-medium">
+                  Capa
+                </span>
+              ) : null}
+              <div className="flex flex-wrap gap-1.5 border-t border-border/50 p-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  className="h-7 text-xs"
+                  disabled={pendingPhotoId === photo.id || photo.isCover}
+                  onClick={() => {
+                    setPendingPhotoId(photo.id);
+                    startTransition(() => {
+                      void (async () => {
+                        await setPhotoCoverAction(orgSlug, photo.id, vehicleId);
+                        setPendingPhotoId(null);
+                        router.refresh();
+                      })();
+                    });
+                  }}
+                >
+                  Definir capa
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs"
+                  disabled={pendingPhotoId === photo.id}
+                  onClick={() => {
+                    if (!confirm('Remover esta foto?')) return;
+                    setPendingPhotoId(photo.id);
+                    startTransition(() => {
+                      void (async () => {
+                        await removePhotoAction(orgSlug, photo.id, vehicleId);
+                        setPendingPhotoId(null);
+                        router.refresh();
+                      })();
+                    });
+                  }}
+                >
+                  Remover
+                </Button>
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

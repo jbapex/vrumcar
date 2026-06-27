@@ -25,8 +25,8 @@ export function VehicleStatusSelect({
   const [pending, start] = useTransition();
 
   return (
-    <div className="flex items-center gap-2">
-      <span className="text-muted-foreground text-sm">Mudar status:</span>
+    <div className="flex flex-wrap items-center gap-2 text-xs">
+      <span className="text-muted-foreground">Status:</span>
       <select
         disabled={pending}
         defaultValue={current}
@@ -36,7 +36,7 @@ export function VehicleStatusSelect({
             void updateStatusAction(orgSlug, vehicleId, v);
           });
         }}
-        className="border-input bg-background h-9 rounded-md border px-2 text-sm"
+        className="border-border/80 bg-muted/60 h-8 rounded-lg border px-2 text-xs text-foreground/80 outline-none transition-colors hover:bg-muted/70 focus-visible:border-ring focus-visible:bg-background focus-visible:text-foreground focus-visible:ring-2 focus-visible:ring-ring/40"
       >
         {OPTIONS.map((o) => (
           <option key={o.value} value={o.value}>

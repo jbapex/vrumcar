@@ -1,19 +1,39 @@
 import type { Vehicle } from '@prisma/client';
+import {
+  AlignLeft,
+  BadgeDollarSign,
+  CarFront,
+  FileText,
+  Palette,
+  Settings2,
+} from 'lucide-react';
+import Link from 'next/link';
+import {
+  FormSection,
+  formActionsClass,
+  formFieldClass,
+  formFieldCompactClass,
+  formFieldFullClass,
+  formFieldMediumClass,
+  formGridClass,
+  formNativeSelectClass,
+} from '@/components/layout/module-form';
 import { Button, buttonVariants } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
+import { ReaisInput } from '@/components/ui/reais-input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import Link from 'next/link';
+import { LUCIDE_STROKE_THIN } from '@/lib/ui/lucide';
+import { cn } from '@/lib/utils';
 import {
   createVehicleAction,
   updateVehicleAction,
 } from '@/app/[orgSlug]/vehicles/actions';
 
-function centsToReaisInput(cents: number | null | undefined): string {
-  if (cents == null || cents === undefined) return '';
-  return String(cents / 100);
-}
+const sectionIconProps = {
+  strokeWidth: LUCIDE_STROKE_THIN,
+  'aria-hidden': true as const,
+};
 
 type VehicleDataFormProps = {
   orgSlug: string;
@@ -30,11 +50,13 @@ export function VehicleDataForm({ orgSlug, mode, vehicle }: VehicleDataFormProps
   const v = vehicle;
 
   return (
-    <form action={action} className="space-y-10">
-      <section className="space-y-4">
-        <h2 className="text-lg font-semibold">Identificação</h2>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
+    <form action={action} className="space-y-4">
+      <FormSection
+        title="Identificação"
+        icon={<CarFront {...sectionIconProps} />}
+      >
+        <div className={formGridClass}>
+          <div className={formFieldClass}>
             <Label htmlFor="brand">Marca *</Label>
             <Input
               id="brand"
@@ -44,7 +66,7 @@ export function VehicleDataForm({ orgSlug, mode, vehicle }: VehicleDataFormProps
               maxLength={50}
             />
           </div>
-          <div className="space-y-2">
+          <div className={formFieldClass}>
             <Label htmlFor="model">Modelo *</Label>
             <Input
               id="model"
@@ -54,7 +76,7 @@ export function VehicleDataForm({ orgSlug, mode, vehicle }: VehicleDataFormProps
               maxLength={100}
             />
           </div>
-          <div className="space-y-2">
+          <div className={formFieldClass}>
             <Label htmlFor="version">Versão</Label>
             <Input
               id="version"
@@ -63,7 +85,7 @@ export function VehicleDataForm({ orgSlug, mode, vehicle }: VehicleDataFormProps
               maxLength={100}
             />
           </div>
-          <div className="space-y-2">
+          <div className={cn(formFieldClass, formFieldCompactClass)}>
             <Label htmlFor="year">Ano (fabricação)</Label>
             <Input
               id="year"
@@ -72,7 +94,7 @@ export function VehicleDataForm({ orgSlug, mode, vehicle }: VehicleDataFormProps
               defaultValue={v?.year ?? ''}
             />
           </div>
-          <div className="space-y-2">
+          <div className={cn(formFieldClass, formFieldCompactClass)}>
             <Label htmlFor="modelYear">Ano modelo</Label>
             <Input
               id="modelYear"
@@ -81,7 +103,7 @@ export function VehicleDataForm({ orgSlug, mode, vehicle }: VehicleDataFormProps
               defaultValue={v?.modelYear ?? ''}
             />
           </div>
-          <div className="space-y-2">
+          <div className={cn(formFieldClass, formFieldMediumClass)}>
             <Label htmlFor="licensePlate">Placa</Label>
             <Input
               id="licensePlate"
@@ -91,51 +113,44 @@ export function VehicleDataForm({ orgSlug, mode, vehicle }: VehicleDataFormProps
             />
           </div>
         </div>
-      </section>
+      </FormSection>
 
-      <section className="space-y-4">
-        <h2 className="text-lg font-semibold">Preço</h2>
-        <p className="text-muted-foreground text-sm">
-          Valores em reais (ex.: 45000 ou 45000.50). O sistema grava em centavos.
-        </p>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
+      <FormSection
+        title="Preço"
+        description="Digite em reais; pontos e vírgulas são aplicados automaticamente. O sistema grava em centavos."
+        icon={<BadgeDollarSign {...sectionIconProps} />}
+      >
+        <div className={formGridClass}>
+          <div className={cn(formFieldClass, formFieldMediumClass)}>
             <Label htmlFor="salePriceReais">Preço de venda (R$) *</Label>
-            <Input
+            <ReaisInput
               id="salePriceReais"
               name="salePriceReais"
-              type="number"
-              step="0.01"
-              min="0.01"
               required
-              defaultValue={centsToReaisInput(v?.salePriceCents)}
+              defaultCents={v?.salePriceCents}
             />
           </div>
-          <div className="space-y-2">
+          <div className={cn(formFieldClass, formFieldMediumClass)}>
             <Label htmlFor="acquisitionCostReais">Custo de aquisição (R$)</Label>
-            <Input
+            <ReaisInput
               id="acquisitionCostReais"
               name="acquisitionCostReais"
-              type="number"
-              step="0.01"
-              min="0"
-              defaultValue={centsToReaisInput(v?.acquisitionCostCents)}
+              defaultCents={v?.acquisitionCostCents}
             />
           </div>
-          <div className="space-y-2">
+          <div className={cn(formFieldClass, formFieldMediumClass)}>
             <Label htmlFor="minPriceReais">Preço mínimo (R$)</Label>
-            <Input
+            <ReaisInput
               id="minPriceReais"
               name="minPriceReais"
-              type="number"
-              step="0.01"
-              min="0"
-              defaultValue={centsToReaisInput(v?.minPriceCents)}
+              defaultCents={v?.minPriceCents}
             />
           </div>
           {mode === 'edit' && (
-            <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="priceReason">Motivo da alteração de preço (opcional)</Label>
+            <div className={cn(formFieldClass, formFieldFullClass)}>
+              <Label htmlFor="priceReason">
+                Motivo da alteração de preço (opcional)
+              </Label>
               <Input
                 id="priceReason"
                 name="priceReason"
@@ -144,12 +159,14 @@ export function VehicleDataForm({ orgSlug, mode, vehicle }: VehicleDataFormProps
             </div>
           )}
         </div>
-      </section>
+      </FormSection>
 
-      <section className="space-y-4">
-        <h2 className="text-lg font-semibold">Detalhes técnicos</h2>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
+      <FormSection
+        title="Detalhes técnicos"
+        icon={<Settings2 {...sectionIconProps} />}
+      >
+        <div className={formGridClass}>
+          <div className={cn(formFieldClass, formFieldMediumClass)}>
             <Label htmlFor="mileageKm">Quilometragem</Label>
             <Input
               id="mileageKm"
@@ -159,12 +176,12 @@ export function VehicleDataForm({ orgSlug, mode, vehicle }: VehicleDataFormProps
               defaultValue={v?.mileageKm ?? ''}
             />
           </div>
-          <div className="space-y-2">
+          <div className={formFieldClass}>
             <Label htmlFor="fuelType">Combustível</Label>
             <select
               id="fuelType"
               name="fuelType"
-              className="border-input bg-background ring-offset-background focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+              className={formNativeSelectClass}
               defaultValue={v?.fuelType ?? ''}
             >
               <option value="">—</option>
@@ -177,12 +194,12 @@ export function VehicleDataForm({ orgSlug, mode, vehicle }: VehicleDataFormProps
               <option value="CNG">GNV</option>
             </select>
           </div>
-          <div className="space-y-2">
+          <div className={formFieldClass}>
             <Label htmlFor="transmission">Câmbio</Label>
             <select
               id="transmission"
               name="transmission"
-              className="border-input bg-background ring-offset-background focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+              className={formNativeSelectClass}
               defaultValue={v?.transmission ?? ''}
             >
               <option value="">—</option>
@@ -192,12 +209,12 @@ export function VehicleDataForm({ orgSlug, mode, vehicle }: VehicleDataFormProps
               <option value="SEMI_AUTOMATIC">Semi-automático</option>
             </select>
           </div>
-          <div className="space-y-2">
+          <div className={formFieldClass}>
             <Label htmlFor="bodyType">Carroceria</Label>
             <select
               id="bodyType"
               name="bodyType"
-              className="border-input bg-background ring-offset-background focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+              className={formNativeSelectClass}
               defaultValue={v?.bodyType ?? ''}
             >
               <option value="">—</option>
@@ -213,12 +230,12 @@ export function VehicleDataForm({ orgSlug, mode, vehicle }: VehicleDataFormProps
               <option value="OTHER">Outro</option>
             </select>
           </div>
-          <div className="space-y-2">
+          <div className={formFieldClass}>
             <Label htmlFor="category">Categoria</Label>
             <select
               id="category"
               name="category"
-              className="border-input bg-background ring-offset-background focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+              className={formNativeSelectClass}
               defaultValue={v?.category ?? ''}
             >
               <option value="">—</option>
@@ -229,7 +246,7 @@ export function VehicleDataForm({ orgSlug, mode, vehicle }: VehicleDataFormProps
               <option value="COMMERCIAL">Comercial</option>
             </select>
           </div>
-          <div className="space-y-2">
+          <div className={cn(formFieldClass, formFieldCompactClass)}>
             <Label htmlFor="engineSize">Motor (ex.: 1.0)</Label>
             <Input
               id="engineSize"
@@ -238,7 +255,7 @@ export function VehicleDataForm({ orgSlug, mode, vehicle }: VehicleDataFormProps
               maxLength={10}
             />
           </div>
-          <div className="space-y-2">
+          <div className={cn(formFieldClass, formFieldCompactClass)}>
             <Label htmlFor="doors">Portas</Label>
             <Input
               id="doors"
@@ -250,12 +267,11 @@ export function VehicleDataForm({ orgSlug, mode, vehicle }: VehicleDataFormProps
             />
           </div>
         </div>
-      </section>
+      </FormSection>
 
-      <section className="space-y-4">
-        <h2 className="text-lg font-semibold">Visual</h2>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
+      <FormSection title="Visual" icon={<Palette {...sectionIconProps} />}>
+        <div className={formGridClass}>
+          <div className={formFieldClass}>
             <Label htmlFor="exteriorColor">Cor externa</Label>
             <Input
               id="exteriorColor"
@@ -263,7 +279,7 @@ export function VehicleDataForm({ orgSlug, mode, vehicle }: VehicleDataFormProps
               defaultValue={v?.exteriorColor ?? ''}
             />
           </div>
-          <div className="space-y-2">
+          <div className={formFieldClass}>
             <Label htmlFor="interiorColor">Cor interna</Label>
             <Input
               id="interiorColor"
@@ -272,12 +288,11 @@ export function VehicleDataForm({ orgSlug, mode, vehicle }: VehicleDataFormProps
             />
           </div>
         </div>
-      </section>
+      </FormSection>
 
-      <section className="space-y-4">
-        <h2 className="text-lg font-semibold">Documentação</h2>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
+      <FormSection title="Documentação" icon={<FileText {...sectionIconProps} />}>
+        <div className={formGridClass}>
+          <div className={cn(formFieldClass, 'xl:col-span-2')}>
             <Label htmlFor="chassisNumber">Chassi</Label>
             <Input
               id="chassisNumber"
@@ -285,52 +300,53 @@ export function VehicleDataForm({ orgSlug, mode, vehicle }: VehicleDataFormProps
               defaultValue={v?.chassisNumber ?? ''}
             />
           </div>
-          <div className="space-y-2">
+          <div className={cn(formFieldClass, formFieldMediumClass)}>
             <Label htmlFor="renavam">RENAVAM</Label>
             <Input id="renavam" name="renavam" defaultValue={v?.renavam ?? ''} />
           </div>
-          <div className="space-y-2">
+          <div className={cn(formFieldClass, formFieldMediumClass)}>
             <Label htmlFor="fipeCode">Código FIPE</Label>
             <Input id="fipeCode" name="fipeCode" defaultValue={v?.fipeCode ?? ''} />
           </div>
         </div>
-      </section>
+      </FormSection>
 
-      <section className="space-y-4">
-        <h2 className="text-lg font-semibold">Descrição</h2>
-        <div className="space-y-2">
-          <Label htmlFor="description">Descrição</Label>
-          <Textarea
-            id="description"
-            name="description"
-            rows={4}
-            defaultValue={v?.description ?? ''}
-            maxLength={5000}
-          />
+      <FormSection title="Descrição" icon={<AlignLeft {...sectionIconProps} />}>
+        <div className={formGridClass}>
+          <div className={cn(formFieldClass, formFieldFullClass)}>
+            <Label htmlFor="description">Descrição</Label>
+            <Textarea
+              id="description"
+              name="description"
+              rows={3}
+              defaultValue={v?.description ?? ''}
+              maxLength={5000}
+            />
+          </div>
+          <div className={cn(formFieldClass, formFieldFullClass)}>
+            <Label htmlFor="notes">Observações internas</Label>
+            <Textarea
+              id="notes"
+              name="notes"
+              rows={2}
+              defaultValue={v?.notes ?? ''}
+              maxLength={5000}
+            />
+          </div>
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="notes">Observações internas</Label>
-          <Textarea
-            id="notes"
-            name="notes"
-            rows={3}
-            defaultValue={v?.notes ?? ''}
-            maxLength={5000}
-          />
-        </div>
-      </section>
+      </FormSection>
 
       {mode === 'create' ? (
         <input type="hidden" name="status" value="AVAILABLE" />
       ) : null}
 
-      <div className="flex flex-wrap gap-3">
-        <Button type="submit">
+      <div className={formActionsClass}>
+        <Button type="submit" size="sm">
           {mode === 'create' ? 'Cadastrar' : 'Salvar alterações'}
         </Button>
         <Link
           href={`/${orgSlug}/vehicles`}
-          className={cn(buttonVariants({ variant: 'outline' }))}
+          className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}
         >
           Cancelar
         </Link>

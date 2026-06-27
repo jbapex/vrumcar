@@ -5,8 +5,8 @@ import {
   BarChart3,
   Calendar,
   Car,
-  ChevronLeft,
-  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
   Contact,
   Kanban,
   LayoutDashboard,
@@ -20,7 +20,6 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import { LogoMark } from '@/components/brand/logo';
-import { Button } from '@/components/ui/button';
 import { LUCIDE_STROKE_THIN } from '@/lib/ui/lucide';
 import { cn } from '@/lib/utils';
 
@@ -75,6 +74,45 @@ type SidebarProps = {
   onNavigate?: () => void;
 };
 
+function NavLink({
+  item,
+  active,
+  collapsed,
+  onNavigate,
+}: {
+  item: NavDef;
+  active: boolean;
+  collapsed: boolean;
+  onNavigate?: () => void;
+}) {
+  const Icon = navIcons[item.icon];
+
+  return (
+    <Link
+      href={item.href}
+      title={collapsed ? item.label : undefined}
+      onClick={() => onNavigate?.()}
+      className={cn(
+        'flex items-center rounded-xl py-2.5 text-sm transition-colors',
+        active
+          ? 'font-semibold text-sidebar-foreground'
+          : 'font-medium text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground',
+        collapsed ? 'justify-center px-2' : 'gap-3 px-3',
+      )}
+    >
+      <Icon
+        className={cn(
+          'size-[1.125rem] shrink-0',
+          active ? 'text-sidebar-foreground' : item.iconClassName,
+        )}
+        strokeWidth={LUCIDE_STROKE_THIN}
+        aria-hidden
+      />
+      {!collapsed && <span>{item.label}</span>}
+    </Link>
+  );
+}
+
 export function Sidebar({
   orgSlug,
   orgName: _orgName,
@@ -85,10 +123,12 @@ export function Sidebar({
   void _orgName;
   void _userRole;
   const pathname = usePathname();
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
   const isMobile = mode === 'mobile';
   const effectiveCollapsed = isMobile ? false : collapsed;
   const items = buildItems(orgSlug);
+  const mainItems = items.filter((item) => item.icon !== 'Settings');
+  const footerItems = items.filter((item) => item.icon === 'Settings');
 
   const linkActive = (href: string) =>
     pathname === href || pathname.startsWith(`${href}/`);
@@ -97,80 +137,88 @@ export function Sidebar({
     <div
       className={cn(
         'flex h-full flex-col overflow-hidden bg-sidebar text-sidebar-foreground transition-all duration-200',
-        /* Desktop: borda/arco ficam no <aside> (clip correto). Mobile sheet: borda aqui. */
-        isMobile ? 'rounded-tr-3xl border-r border-white/10' : '',
-        effectiveCollapsed ? 'w-16' : 'w-64',
+        effectiveCollapsed ? 'w-16' : 'w-60',
       )}
     >
+      {/* Header — logo em tile claro + nome */}
       <div
         className={cn(
-          'flex h-16 shrink-0 items-center gap-2 border-b border-white/15 bg-sidebar px-2',
-          isMobile ? 'rounded-tr-3xl' : 'rounded-tr-4xl',
-          effectiveCollapsed && 'justify-center',
+          'shrink-0 border-b border-white/15 px-3 py-4',
+          effectiveCollapsed && 'px-2',
         )}
       >
-        <LogoMark className="size-8" variant="white" />
-        {!effectiveCollapsed && (
-          <span className="truncate text-lg font-bold tracking-tight text-sidebar-foreground">
-            VrumCar
-          </span>
-        )}
-      </div>
-      <nav className="flex-1 space-y-1 overflow-y-auto p-2 pt-3">
-        {items.map((item) => {
-          const Icon = navIcons[item.icon];
-          const active = linkActive(item.href);
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              title={effectiveCollapsed ? item.label : undefined}
-              onClick={() => onNavigate?.()}
-              className={cn(
-                'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors',
-                active
-                  ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-sm'
-                  : 'text-sidebar-foreground/90 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
-                effectiveCollapsed && 'justify-center px-2',
-              )}
-            >
-              <Icon
-                className={cn(
-                  'size-[1.125rem] shrink-0',
-                  active ? 'text-sidebar-primary-foreground' : item.iconClassName,
-                )}
-                strokeWidth={LUCIDE_STROKE_THIN}
-                aria-hidden
-              />
-              {!effectiveCollapsed && <span>{item.label}</span>}
-            </Link>
-          );
-        })}
-      </nav>
-      {!isMobile && (
-        <div className="border-t border-white/10 p-2">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="w-full text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-            onClick={() => setCollapsed((c) => !c)}
-            aria-label={collapsed ? 'Expandir menu' : 'Recolher menu'}
-          >
-            {collapsed ? (
-              <ChevronRight
-                className="size-4"
-                strokeWidth={LUCIDE_STROKE_THIN}
-              />
-            ) : (
-              <ChevronLeft
-                className="size-4"
-                strokeWidth={LUCIDE_STROKE_THIN}
-              />
-            )}
-          </Button>
+        <div
+          className={cn(
+            'flex items-center gap-3',
+            effectiveCollapsed && 'justify-center',
+          )}
+        >
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-white/15">
+            <LogoMark className="size-7" variant="white" />
+          </div>
+          {!effectiveCollapsed && (
+            <span className="truncate text-lg font-bold tracking-tight text-sidebar-foreground">
+              VrumCar
+            </span>
+          )}
         </div>
-      )}
+      </div>
+
+      {/* Nav principal */}
+      <nav className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        {!isMobile && (
+          <div
+            className={cn(
+              'shrink-0 px-2 pt-3',
+              effectiveCollapsed && 'flex justify-center',
+            )}
+          >
+            <button
+              type="button"
+              onClick={() => setCollapsed((c) => !c)}
+              aria-label={collapsed ? 'Expandir menu' : 'Recolher menu'}
+              className="rounded-lg p-2 text-sidebar-foreground/55 transition-colors hover:bg-white/10 hover:text-sidebar-foreground"
+            >
+              {collapsed ? (
+                <ChevronsRight
+                  className="size-4"
+                  strokeWidth={LUCIDE_STROKE_THIN}
+                />
+              ) : (
+                <ChevronsLeft
+                  className="size-4"
+                  strokeWidth={LUCIDE_STROKE_THIN}
+                />
+              )}
+            </button>
+          </div>
+        )}
+
+        <div className="flex-1 space-y-0.5 overflow-y-auto px-2 py-2">
+          {mainItems.map((item) => (
+            <NavLink
+              key={item.href}
+              item={item}
+              active={linkActive(item.href)}
+              collapsed={effectiveCollapsed}
+              onNavigate={onNavigate}
+            />
+          ))}
+        </div>
+      </nav>
+
+      {/* Rodapé — itens secundários */}
+      <div className="shrink-0 border-t border-white/15 px-2 py-3">
+        {footerItems.map((item) => (
+          <NavLink
+            key={item.href}
+            item={item}
+            active={linkActive(item.href)}
+            collapsed={effectiveCollapsed}
+            onNavigate={onNavigate}
+          />
+        ))}
+      </div>
     </div>
   );
 }

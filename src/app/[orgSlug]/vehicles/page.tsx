@@ -9,6 +9,7 @@ import {
 import { VehicleStatusBadge } from '@/components/vehicles/status-badge';
 import { DataListCard } from '@/components/layout/data-list-card';
 import {
+  ListPageCardFooter,
   ListPageEmpty,
   ListTable,
   ListTableBody,
@@ -17,9 +18,15 @@ import {
   ListTableHeader,
   ListTableRow,
   ListTableWrap,
+  listPageFilterFieldClass,
   listPageNativeSelectClass,
+  listPageSearchFieldClass,
+  listPageSectionClass,
+  listPageToolbarClass,
+  listPageToolbarFieldsClass,
 } from '@/components/layout/list-table';
 import { PageHeader } from '@/components/layout/page-header';
+import { listPageLinkClass } from '@/components/layout/module-form';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { LUCIDE_STROKE_THIN } from '@/lib/ui/lucide';
@@ -79,7 +86,7 @@ export default async function VehiclesListPage({
       : null;
 
   return (
-    <div className="space-y-6">
+    <div className={listPageSectionClass}>
       <PageHeader
         breadcrumbs={
           <>
@@ -95,16 +102,20 @@ export default async function VehiclesListPage({
           <Link
             href={`/${orgSlug}/vehicles/export?${exportQs.toString()}`}
             className={cn(
-              buttonVariants({ variant: 'outline', size: 'pill' }),
+              buttonVariants({ variant: 'outline', size: 'sm' }),
+              'rounded-full',
             )}
           >
             Exportar CSV
           </Link>
           <Link
             href={`/${orgSlug}/vehicles/new`}
-            className={cn(buttonVariants({ size: 'pill' }), 'gap-2')}
+            className={cn(
+              buttonVariants({ size: 'sm' }),
+              'gap-1.5 rounded-full',
+            )}
           >
-            <Plus className="size-4" strokeWidth={LUCIDE_STROKE_THIN} />
+            <Plus className="size-3.5" strokeWidth={LUCIDE_STROKE_THIN} />
             Novo veículo
           </Link>
         </div>
@@ -112,15 +123,14 @@ export default async function VehiclesListPage({
 
       <DataListCard>
         <form method="GET" className="flex flex-col">
-          <div className="flex flex-col gap-4 border-b border-border/50 bg-muted/15 px-4 py-5 md:px-6">
-            {result.total > 0 ? (
-              <p className="text-center text-sm text-muted-foreground md:text-left">
-                {result.total} veículo{result.total !== 1 ? 's' : ''} no
-                catálogo
-              </p>
-            ) : null}
-            <div className="flex flex-col gap-4 lg:flex-row lg:flex-wrap lg:items-end">
-              <div className="relative min-w-[220px] flex-1">
+          <div className={listPageToolbarClass}>
+            <div className={listPageToolbarFieldsClass}>
+              {result.total > 0 ? (
+                <p className="hidden shrink-0 self-center text-xs text-muted-foreground md:block md:pb-0.5">
+                  {result.total} veículo{result.total !== 1 ? 's' : ''}
+                </p>
+              ) : null}
+              <div className={listPageSearchFieldClass}>
                 <label htmlFor="search" className="sr-only">
                   Buscar
                 </label>
@@ -138,7 +148,7 @@ export default async function VehiclesListPage({
                   defaultValue={filters.search ?? ''}
                 />
               </div>
-              <div className="w-full min-w-[160px] space-y-1.5 sm:w-48">
+              <div className={cn(listPageFilterFieldClass, 'md:w-[7.5rem]')}>
                 <label
                   htmlFor="status"
                   className="text-xs font-medium text-muted-foreground"
@@ -160,7 +170,7 @@ export default async function VehiclesListPage({
                   <option value="INACTIVE">Inativo</option>
                 </select>
               </div>
-              <div className="w-full min-w-[180px] space-y-1.5 sm:w-56">
+              <div className={cn(listPageFilterFieldClass, 'md:w-[8rem]')}>
                 <label
                   htmlFor="orderBy"
                   className="text-xs font-medium text-muted-foreground"
@@ -181,7 +191,7 @@ export default async function VehiclesListPage({
                   <option value="mileageKm">Quilometragem</option>
                 </select>
               </div>
-              <div className="w-full min-w-[140px] space-y-1.5 sm:w-40">
+              <div className={cn(listPageFilterFieldClass, 'md:w-[6.5rem]')}>
                 <label
                   htmlFor="orderDir"
                   className="text-xs font-medium text-muted-foreground"
@@ -199,7 +209,11 @@ export default async function VehiclesListPage({
                 </select>
               </div>
               <input type="hidden" name="page" value="1" />
-              <Button type="submit" size="pill" className="w-full sm:w-auto">
+              <Button
+                type="submit"
+                size="pill"
+                className="w-full shrink-0 md:w-auto"
+              >
                 Filtrar
               </Button>
             </div>
@@ -207,14 +221,14 @@ export default async function VehiclesListPage({
         </form>
 
         {result.items.length === 0 ? (
-          <div className="p-6">
+          <div className="p-4">
             <ListPageEmpty>
               <Car
                 className="size-12 opacity-50"
                 strokeWidth={LUCIDE_STROKE_THIN}
                 aria-hidden
               />
-              <p className="max-w-sm text-center text-sm">
+              <p className="max-w-sm text-center text-xs">
                 Nenhum veículo cadastrado. Use &quot;Novo veículo&quot; pra
                 começar.
               </p>
@@ -243,12 +257,12 @@ export default async function VehiclesListPage({
                           <img
                             src={cover.url}
                             alt=""
-                            width={60}
-                            height={60}
-                            className="size-[60px] rounded-xl object-cover"
+                            width={48}
+                            height={48}
+                            className="size-12 rounded-lg object-cover"
                           />
                         ) : (
-                          <div className="bg-muted flex size-[60px] items-center justify-center rounded-xl text-xs text-muted-foreground">
+                          <div className="bg-muted flex size-12 items-center justify-center rounded-lg text-[0.6875rem] text-muted-foreground">
                             —
                           </div>
                         )}
@@ -257,7 +271,7 @@ export default async function VehiclesListPage({
                         <div className="font-medium">{row.brand}</div>
                         <div className="text-muted-foreground">{row.model}</div>
                         {row.version ? (
-                          <div className="text-muted-foreground text-xs">
+                          <div className="text-muted-foreground text-[0.6875rem]">
                             {row.version}
                           </div>
                         ) : null}
@@ -273,7 +287,7 @@ export default async function VehiclesListPage({
                       <ListTableCell>
                         <Link
                           href={`/${orgSlug}/vehicles/${row.id}`}
-                          className="text-primary font-medium underline-offset-4 hover:underline"
+                          className={listPageLinkClass}
                         >
                           Ver
                         </Link>
@@ -285,10 +299,8 @@ export default async function VehiclesListPage({
             </ListTable>
           </ListTableWrap>
         )}
-      </DataListCard>
-
-      {result.total > 0 ? (
-        <div className="text-muted-foreground flex flex-wrap items-center justify-between gap-3 text-sm">
+        {result.total > 0 ? (
+          <ListPageCardFooter>
           <span>
             Página {filters.page} de {result.totalPages}
           </span>
@@ -298,13 +310,18 @@ export default async function VehiclesListPage({
                 href={`/${orgSlug}/vehicles?${prevQs.toString()}`}
                 className={cn(
                   buttonVariants({ variant: 'outline', size: 'sm' }),
-                  'rounded-full',
+                  'h-8 rounded-full px-3 text-xs',
                 )}
               >
                 Anterior
               </Link>
             ) : (
-              <Button variant="outline" size="sm" className="rounded-full" disabled>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 rounded-full px-3 text-xs"
+                disabled
+              >
                 Anterior
               </Button>
             )}
@@ -313,19 +330,25 @@ export default async function VehiclesListPage({
                 href={`/${orgSlug}/vehicles?${nextQs.toString()}`}
                 className={cn(
                   buttonVariants({ variant: 'outline', size: 'sm' }),
-                  'rounded-full',
+                  'h-8 rounded-full px-3 text-xs',
                 )}
               >
                 Próxima
               </Link>
             ) : (
-              <Button variant="outline" size="sm" className="rounded-full" disabled>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 rounded-full px-3 text-xs"
+                disabled
+              >
                 Próxima
               </Button>
             )}
           </div>
-        </div>
-      ) : null}
+          </ListPageCardFooter>
+        ) : null}
+      </DataListCard>
     </div>
   );
 }

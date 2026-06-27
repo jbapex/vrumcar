@@ -10,7 +10,7 @@ export default async function LoginPage({ searchParams }: Props) {
   const error = params.error;
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-zinc-100 px-4">
+    <div className="flex min-h-dvh flex-col items-center justify-center overflow-y-auto bg-zinc-100 px-4">
       <div className="w-full max-w-sm rounded-lg border border-zinc-200 bg-white p-8 shadow-sm">
         <h1 className="mb-6 text-center text-2xl font-semibold text-zinc-900">
           VrumCar

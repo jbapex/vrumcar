@@ -46,31 +46,31 @@ export function Topbar({
   const ini = initials(userName || userEmail, userEmail);
 
   return (
-    <header className="flex h-16 shrink-0 items-center justify-between border-b border-border/60 bg-card px-4">
-      <div className="flex min-w-0 items-center gap-3">
+    <header className="flex h-12 shrink-0 items-center justify-between border-b border-border/50 bg-card px-4 md:px-5">
+      <div className="flex min-w-0 items-center gap-3 md:hidden">
         <Button
           type="button"
           variant="ghost"
           size="icon"
-          className="md:hidden"
           onClick={onOpenMobileMenu}
           aria-label="Abrir menu"
         >
           <Menu className="size-5" strokeWidth={LUCIDE_STROKE_THIN} />
         </Button>
-        <p className="truncate text-sm text-muted-foreground">
-          <span className="font-medium text-foreground">VrumCar</span>
-          <span className="mx-1.5 text-muted-foreground">/</span>
-          <span className="text-foreground">{orgName}</span>
-        </p>
+        <p className="truncate text-sm font-medium text-foreground">{orgName}</p>
       </div>
+
+      <div className="hidden flex-1 md:block" />
+
       <DropdownMenu>
         <DropdownMenuTrigger
-          className="flex size-10 items-center justify-center rounded-full border-0 bg-transparent p-0 outline-none ring-offset-background hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
+          className="flex size-10 items-center justify-center rounded-full border border-border/60 bg-card p-0 outline-none ring-offset-background hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
           aria-label="Menu da conta"
         >
-          <Avatar className="size-9">
-            <AvatarFallback>{ini}</AvatarFallback>
+          <Avatar className="size-8">
+            <AvatarFallback className="bg-primary/10 text-xs font-semibold text-primary">
+              {ini}
+            </AvatarFallback>
           </Avatar>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-48">

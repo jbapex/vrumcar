@@ -11,6 +11,7 @@ import { LeadPriorityBadge } from '@/components/leads/priority-badge';
 import { LeadStatusBadge } from '@/components/leads/status-badge';
 import { DataListCard } from '@/components/layout/data-list-card';
 import {
+  ListPageCardFooter,
   ListPageEmpty,
   ListTable,
   ListTableBody,
@@ -19,7 +20,12 @@ import {
   ListTableHeader,
   ListTableRow,
   ListTableWrap,
+  listPageFilterFieldClass,
   listPageNativeSelectClass,
+  listPageSearchFieldClass,
+  listPageSectionClass,
+  listPageToolbarClass,
+  listPageToolbarFieldsClass,
 } from '@/components/layout/list-table';
 import { PageHeader } from '@/components/layout/page-header';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -116,7 +122,7 @@ export default async function LeadsListPage({
       : null;
 
   return (
-    <div className="space-y-6">
+    <div className={listPageSectionClass}>
       <PageHeader
         breadcrumbs={
           <>
@@ -139,15 +145,14 @@ export default async function LeadsListPage({
 
       <DataListCard>
         <form method="GET" className="flex flex-col">
-          <div className="flex flex-col gap-4 border-b border-border/50 bg-muted/15 px-4 py-5 md:px-6">
-            {result.total > 0 ? (
-              <p className="text-center text-sm text-muted-foreground md:text-left">
-                {result.total} lead{result.total !== 1 ? 's' : ''} encontrado
-                {result.total !== 1 ? 's' : ''}
-              </p>
-            ) : null}
-            <div className="flex flex-col gap-4 lg:flex-row lg:flex-wrap lg:items-end">
-              <div className="relative min-w-[220px] flex-1">
+          <div className={listPageToolbarClass}>
+            <div className={listPageToolbarFieldsClass}>
+              {result.total > 0 ? (
+                <p className="hidden shrink-0 self-center text-xs text-muted-foreground md:block md:pb-0.5">
+                  {result.total} lead{result.total !== 1 ? 's' : ''}
+                </p>
+              ) : null}
+              <div className={listPageSearchFieldClass}>
                 <label htmlFor="search" className="sr-only">
                   Buscar
                 </label>
@@ -165,7 +170,7 @@ export default async function LeadsListPage({
                   defaultValue={filters.search ?? ''}
                 />
               </div>
-              <div className="w-full min-w-[160px] space-y-1.5 sm:w-48">
+              <div className={cn(listPageFilterFieldClass, 'md:w-[7.5rem]')}>
                 <label
                   htmlFor="status"
                   className="text-xs font-medium text-muted-foreground"
@@ -185,7 +190,7 @@ export default async function LeadsListPage({
                   ))}
                 </select>
               </div>
-              <div className="w-full min-w-[160px] space-y-1.5 sm:w-48">
+              <div className={cn(listPageFilterFieldClass, 'md:w-[7.5rem]')}>
                 <label
                   htmlFor="source"
                   className="text-xs font-medium text-muted-foreground"
@@ -205,7 +210,7 @@ export default async function LeadsListPage({
                   ))}
                 </select>
               </div>
-              <div className="w-full min-w-[140px] space-y-1.5 sm:w-40">
+              <div className={cn(listPageFilterFieldClass, 'md:w-[6.5rem]')}>
                 <label
                   htmlFor="priority"
                   className="text-xs font-medium text-muted-foreground"
@@ -225,7 +230,7 @@ export default async function LeadsListPage({
                   ))}
                 </select>
               </div>
-              <div className="w-full min-w-[180px] space-y-1.5 sm:w-56">
+              <div className={cn(listPageFilterFieldClass, 'md:w-[8rem]')}>
                 <label
                   htmlFor="orderBy"
                   className="text-xs font-medium text-muted-foreground"
@@ -245,7 +250,7 @@ export default async function LeadsListPage({
                   ))}
                 </select>
               </div>
-              <div className="w-full min-w-[140px] space-y-1.5 sm:w-40">
+              <div className={cn(listPageFilterFieldClass, 'md:w-[6.5rem]')}>
                 <label
                   htmlFor="orderDir"
                   className="text-xs font-medium text-muted-foreground"
@@ -268,7 +273,11 @@ export default async function LeadsListPage({
                 name="pageSize"
                 value={String(filters.pageSize)}
               />
-              <Button type="submit" size="pill" className="w-full sm:w-auto">
+              <Button
+                type="submit"
+                size="pill"
+                className="w-full shrink-0 md:w-auto"
+              >
                 Filtrar
               </Button>
             </div>
@@ -276,7 +285,7 @@ export default async function LeadsListPage({
         </form>
 
         {result.items.length === 0 ? (
-          <div className="p-6">
+          <div className="p-4">
             <ListPageEmpty>
               <Users
                 className="size-12 opacity-50"
@@ -337,47 +346,57 @@ export default async function LeadsListPage({
             </ListTable>
           </ListTableWrap>
         )}
-      </DataListCard>
 
-      {result.total > 0 ? (
-        <div className="text-muted-foreground flex flex-wrap items-center justify-between gap-3 text-sm">
-          <span>
-            Página {filters.page} de {result.totalPages}
-          </span>
-          <div className="flex gap-2">
-            {prevQs ? (
-              <Link
-                href={`/${orgSlug}/leads?${prevQs.toString()}`}
-                className={cn(
-                  buttonVariants({ variant: 'outline', size: 'sm' }),
-                  'rounded-full',
-                )}
-              >
-                Anterior
-              </Link>
-            ) : (
-              <Button variant="outline" size="sm" className="rounded-full" disabled>
-                Anterior
-              </Button>
-            )}
-            {nextQs ? (
-              <Link
-                href={`/${orgSlug}/leads?${nextQs.toString()}`}
-                className={cn(
-                  buttonVariants({ variant: 'outline', size: 'sm' }),
-                  'rounded-full',
-                )}
-              >
-                Próxima
-              </Link>
-            ) : (
-              <Button variant="outline" size="sm" className="rounded-full" disabled>
-                Próxima
-              </Button>
-            )}
-          </div>
-        </div>
-      ) : null}
+        {result.total > 0 ? (
+          <ListPageCardFooter>
+            <span>
+              Página {filters.page} de {result.totalPages}
+            </span>
+            <div className="flex gap-2">
+              {prevQs ? (
+                <Link
+                  href={`/${orgSlug}/leads?${prevQs.toString()}`}
+                  className={cn(
+                    buttonVariants({ variant: 'outline', size: 'sm' }),
+                    'h-8 rounded-full px-3 text-xs',
+                  )}
+                >
+                  Anterior
+                </Link>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 rounded-full px-3 text-xs"
+                  disabled
+                >
+                  Anterior
+                </Button>
+              )}
+              {nextQs ? (
+                <Link
+                  href={`/${orgSlug}/leads?${nextQs.toString()}`}
+                  className={cn(
+                    buttonVariants({ variant: 'outline', size: 'sm' }),
+                    'h-8 rounded-full px-3 text-xs',
+                  )}
+                >
+                  Próxima
+                </Link>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 rounded-full px-3 text-xs"
+                  disabled
+                >
+                  Próxima
+                </Button>
+              )}
+            </div>
+          </ListPageCardFooter>
+        ) : null}
+      </DataListCard>
     </div>
   );
 }

@@ -28,14 +28,17 @@ export function AppShell({
 
   return (
     <TooltipProvider delay={300}>
-      <div className="bg-page-canvas flex min-h-screen w-full">
-        <aside className="bg-sidebar sticky top-0 hidden h-screen shrink-0 overflow-hidden rounded-tr-4xl border-r border-white/10 md:block">
-          <Sidebar
-            orgSlug={orgSlug}
-            orgName={orgName}
-            userRole={userRole}
-            mode="desktop"
-          />
+      <div className="bg-page-canvas flex h-dvh w-full gap-2 overflow-hidden p-2">
+        {/* Sidebar roxa — fixa, scroll só dentro dela se necessário */}
+        <aside className="hidden h-full shrink-0 md:block">
+          <div className="bg-sidebar h-full overflow-hidden rounded-xl border border-white/10 shadow-sm">
+            <Sidebar
+              orgSlug={orgSlug}
+              orgName={orgName}
+              userRole={userRole}
+              mode="desktop"
+            />
+          </div>
         </aside>
 
         <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
@@ -54,7 +57,8 @@ export function AppShell({
           </SheetContent>
         </Sheet>
 
-        <div className="flex min-h-screen min-w-0 flex-1 flex-col">
+        {/* Container principal — topbar fixa, conteúdo rola dentro */}
+        <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-border/60 bg-card shadow-sm">
           <Topbar
             orgSlug={orgSlug}
             orgName={orgName}
@@ -62,7 +66,7 @@ export function AppShell({
             userEmail={userEmail}
             onOpenMobileMenu={() => setMobileOpen(true)}
           />
-          <main className="flex-1 overflow-y-auto p-6">
+          <main className="min-h-0 flex-1 overflow-y-auto p-4 md:p-5">
             {children}
           </main>
         </div>

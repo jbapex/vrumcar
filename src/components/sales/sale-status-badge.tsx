@@ -13,6 +13,8 @@ const VARIANTS: Record<
 
 export function SaleStatusBadge({ status }: { status: SaleStatus }) {
   return (
-    <Badge variant={VARIANTS[status]}>{SALE_STATUS_LABELS[status]}</Badge>
+    <Badge variant={VARIANTS[status]} size="sm">
+      {SALE_STATUS_LABELS[status]}
+    </Badge>
   );
 }

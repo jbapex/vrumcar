@@ -4,6 +4,7 @@ import { formatCpfCnpj, formatPhone } from '@/lib/format/phone';
 import { listCustomers } from '@/modules/customers/service';
 import { DataListCard } from '@/components/layout/data-list-card';
 import {
+  ListPageCardFooter,
   ListPageEmpty,
   ListTable,
   ListTableBody,
@@ -12,6 +13,10 @@ import {
   ListTableHeader,
   ListTableRow,
   ListTableWrap,
+  listPageSearchFieldClass,
+  listPageSectionClass,
+  listPageToolbarClass,
+  listPageToolbarFieldsClass,
 } from '@/components/layout/list-table';
 import { PageHeader } from '@/components/layout/page-header';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -99,7 +104,7 @@ export default async function CustomersListPage({
       : null;
 
   return (
-    <div className="space-y-6">
+    <div className={listPageSectionClass}>
       <PageHeader
         breadcrumbs={
           <>
@@ -121,18 +126,14 @@ export default async function CustomersListPage({
       </PageHeader>
 
       <DataListCard>
-        <form
-          method="GET"
-          className="flex flex-col border-b border-border/50 bg-muted/15 px-4 py-5 md:flex-row md:items-end md:gap-4 md:px-6"
-        >
-          {result.total > 0 ? (
-            <p className="mb-4 w-full text-center text-sm text-muted-foreground md:mb-0 md:w-auto md:flex-1 md:text-left">
-              {result.total} cliente{result.total !== 1 ? 's' : ''}
-            </p>
-          ) : (
-            <div className="hidden md:block md:flex-1" />
-          )}
-          <div className="relative min-w-[220px] flex-1 md:max-w-md">
+        <form method="GET" className={listPageToolbarClass}>
+          <div className={listPageToolbarFieldsClass}>
+            {result.total > 0 ? (
+              <p className="hidden shrink-0 self-center text-xs text-muted-foreground md:block md:pb-0.5">
+                {result.total} cliente{result.total !== 1 ? 's' : ''}
+              </p>
+            ) : null}
+            <div className={listPageSearchFieldClass}>
             <label htmlFor="search" className="sr-only">
               Buscar
             </label>
@@ -156,13 +157,18 @@ export default async function CustomersListPage({
             name="pageSize"
             value={String(listParams.pageSize)}
           />
-          <Button type="submit" size="pill" className="mt-3 w-full md:mt-0 md:w-auto">
+          <Button
+            type="submit"
+            size="pill"
+            className="w-full shrink-0 md:w-auto"
+          >
             Filtrar
           </Button>
+          </div>
         </form>
 
         {result.items.length === 0 ? (
-          <div className="p-6">
+          <div className="p-4">
             <ListPageEmpty>
               <p className="max-w-sm text-center text-sm">
                 Nenhum cliente cadastrado.
@@ -209,47 +215,57 @@ export default async function CustomersListPage({
             </ListTable>
           </ListTableWrap>
         )}
-      </DataListCard>
 
-      {result.total > 0 ? (
-        <div className="text-muted-foreground flex flex-wrap items-center justify-between gap-3 text-sm">
-          <span>
-            Página {listParams.page} de {result.totalPages}
-          </span>
-          <div className="flex gap-2">
-            {prevQs ? (
-              <Link
-                href={`/${orgSlug}/customers?${prevQs.toString()}`}
-                className={cn(
-                  buttonVariants({ variant: 'outline', size: 'sm' }),
-                  'rounded-full',
-                )}
-              >
-                Anterior
-              </Link>
-            ) : (
-              <Button variant="outline" size="sm" className="rounded-full" disabled>
-                Anterior
-              </Button>
-            )}
-            {nextQs ? (
-              <Link
-                href={`/${orgSlug}/customers?${nextQs.toString()}`}
-                className={cn(
-                  buttonVariants({ variant: 'outline', size: 'sm' }),
-                  'rounded-full',
-                )}
-              >
-                Próxima
-              </Link>
-            ) : (
-              <Button variant="outline" size="sm" className="rounded-full" disabled>
-                Próxima
-              </Button>
-            )}
-          </div>
-        </div>
-      ) : null}
+        {result.total > 0 ? (
+          <ListPageCardFooter>
+            <span>
+              Página {listParams.page} de {result.totalPages}
+            </span>
+            <div className="flex gap-2">
+              {prevQs ? (
+                <Link
+                  href={`/${orgSlug}/customers?${prevQs.toString()}`}
+                  className={cn(
+                    buttonVariants({ variant: 'outline', size: 'sm' }),
+                    'h-8 rounded-full px-3 text-xs',
+                  )}
+                >
+                  Anterior
+                </Link>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 rounded-full px-3 text-xs"
+                  disabled
+                >
+                  Anterior
+                </Button>
+              )}
+              {nextQs ? (
+                <Link
+                  href={`/${orgSlug}/customers?${nextQs.toString()}`}
+                  className={cn(
+                    buttonVariants({ variant: 'outline', size: 'sm' }),
+                    'h-8 rounded-full px-3 text-xs',
+                  )}
+                >
+                  Próxima
+                </Link>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 rounded-full px-3 text-xs"
+                  disabled
+                >
+                  Próxima
+                </Button>
+              )}
+            </div>
+          </ListPageCardFooter>
+        ) : null}
+      </DataListCard>
     </div>
   );
 }

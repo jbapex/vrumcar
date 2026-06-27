@@ -6,7 +6,7 @@ export default async function DashboardPage() {
   const session = await auth();
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PageHeader
         breadcrumbs={
           <>
@@ -30,7 +30,7 @@ export default async function DashboardPage() {
         {Array.from({ length: 4 }).map((_, i) => (
           <div
             key={i}
-            className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-card p-5 text-card-foreground shadow-md"
+            className="flex flex-col gap-2 rounded-xl border border-border/60 bg-card p-4 text-card-foreground shadow-sm"
           >
             <Skeleton className="h-4 w-24 rounded-full" />
             <Skeleton className="h-9 w-full rounded-lg" />

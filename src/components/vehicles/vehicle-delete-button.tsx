@@ -17,6 +17,7 @@ export function VehicleDeleteButton({
     <Button
       type="button"
       variant="destructive"
+      size="sm"
       disabled={pending}
       onClick={() => {
         if (!confirm('Excluir este veículo? O registro ficará oculto (soft delete).')) {

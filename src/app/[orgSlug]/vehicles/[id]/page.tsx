@@ -1,3 +1,16 @@
+import { DataListCard } from '@/components/layout/data-list-card';
+import { PageHeader } from '@/components/layout/page-header';
+import {
+  ListPageEmpty,
+  ListTable,
+  ListTableBody,
+  ListTableCell,
+  ListTableHeadCell,
+  ListTableHeader,
+  ListTableRow,
+  ListTableWrap,
+  listPageSectionClass,
+} from '@/components/layout/list-table';
 import { VehicleDataForm } from '@/components/vehicles/vehicle-data-form';
 import { VehicleDeleteButton } from '@/components/vehicles/vehicle-delete-button';
 import { VehicleEditTabs } from '@/components/vehicles/vehicle-edit-tabs';
@@ -43,21 +56,35 @@ export default async function EditVehiclePage({
   }
 
   const photos = [...vehicle.photos].sort((a, b) => a.order - b.order);
+  const vehicleTitle = [
+    vehicle.brand,
+    vehicle.model,
+    vehicle.version,
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Editar veículo</h1>
-          <p className="text-muted-foreground mt-1 text-lg">
-            {vehicle.brand} {vehicle.model}
-            {vehicle.version ? ` ${vehicle.version}` : ''}
-          </p>
-          <div className="mt-2">
+    <div className={listPageSectionClass}>
+      <PageHeader
+        breadcrumbs={
+          <>
+            <span className="font-medium text-foreground">VrumCar</span>
+            <span className="mx-1.5">/</span>
+            <span>Estoque</span>
+            <span className="mx-1.5">/</span>
+            <span>{vehicle.model}</span>
+          </>
+        }
+        title="Editar veículo"
+        description={
+          <span className="inline-flex flex-wrap items-center gap-2">
+            <span>{vehicleTitle}</span>
             <VehicleStatusBadge status={vehicle.status} />
-          </div>
-        </div>
-        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+          </span>
+        }
+      >
+        <div className="flex flex-wrap items-center gap-2">
           <VehicleStatusSelect
             key={vehicle.status}
             orgSlug={orgSlug}
@@ -66,62 +93,65 @@ export default async function EditVehiclePage({
           />
           <VehicleDeleteButton orgSlug={orgSlug} vehicleId={vehicle.id} />
         </div>
-      </div>
+      </PageHeader>
 
-      <VehicleEditTabs
-        dados={<VehicleDataForm orgSlug={orgSlug} mode="edit" vehicle={vehicle} />}
-        fotos={
-          <PhotoUploader
-            orgSlug={orgSlug}
-            vehicleId={vehicle.id}
-            existingPhotos={photos}
-          />
-        }
-        custos={<VehicleCostsPanel orgSlug={orgSlug} vehicle={vehicle} />}
-        historico={
-          <div className="overflow-x-auto rounded-md border">
-            <table className="w-full text-sm">
-              <thead className="bg-muted/50">
-                <tr>
-                  <th className="p-2 text-left">Data</th>
-                  <th className="p-2 text-right">Preço antigo</th>
-                  <th className="p-2 text-right">Preço novo</th>
-                  <th className="p-2 text-left">Motivo</th>
-                  <th className="p-2 text-left">Usuário</th>
-                </tr>
-              </thead>
-              <tbody>
-                {vehicle.priceHistory.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={5}
-                      className="text-muted-foreground p-4 text-center"
-                    >
-                      Nenhuma alteração de preço registrada.
-                    </td>
-                  </tr>
-                ) : (
-                  vehicle.priceHistory.map((h) => (
-                    <tr key={h.id} className="border-t">
-                      <td className="p-2">{formatDate(h.changedAt)}</td>
-                      <td className="p-2 text-right">
-                        {formatPriceBRL(h.oldPriceCents)}
-                      </td>
-                      <td className="p-2 text-right">
-                        {formatPriceBRL(h.newPriceCents)}
-                      </td>
-                      <td className="p-2">{h.reason ?? '—'}</td>
-                      <td className="p-2 font-mono text-xs">
-                        {h.changedBy ?? '—'}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        }
-      />
+      <DataListCard>
+        <VehicleEditTabs
+          dados={
+            <VehicleDataForm orgSlug={orgSlug} mode="edit" vehicle={vehicle} />
+          }
+          fotos={
+            <PhotoUploader
+              orgSlug={orgSlug}
+              vehicleId={vehicle.id}
+              existingPhotos={photos}
+            />
+          }
+          custos={<VehicleCostsPanel orgSlug={orgSlug} vehicle={vehicle} />}
+          historico={
+            vehicle.priceHistory.length === 0 ? (
+              <ListPageEmpty className="py-8">
+                <p className="text-center text-xs">
+                  Nenhuma alteração de preço registrada.
+                </p>
+              </ListPageEmpty>
+            ) : (
+              <ListTableWrap>
+                <ListTable>
+                  <ListTableHeader>
+                    <ListTableHeadCell>Data</ListTableHeadCell>
+                    <ListTableHeadCell className="text-right">
+                      Preço antigo
+                    </ListTableHeadCell>
+                    <ListTableHeadCell className="text-right">
+                      Preço novo
+                    </ListTableHeadCell>
+                    <ListTableHeadCell>Motivo</ListTableHeadCell>
+                    <ListTableHeadCell>Usuário</ListTableHeadCell>
+                  </ListTableHeader>
+                  <ListTableBody>
+                    {vehicle.priceHistory.map((h) => (
+                      <ListTableRow key={h.id}>
+                        <ListTableCell>{formatDate(h.changedAt)}</ListTableCell>
+                        <ListTableCell className="text-right">
+                          {formatPriceBRL(h.oldPriceCents)}
+                        </ListTableCell>
+                        <ListTableCell className="text-right">
+                          {formatPriceBRL(h.newPriceCents)}
+                        </ListTableCell>
+                        <ListTableCell>{h.reason ?? '—'}</ListTableCell>
+                        <ListTableCell className="font-mono text-[0.6875rem]">
+                          {h.changedBy ?? '—'}
+                        </ListTableCell>
+                      </ListTableRow>
+                    ))}
+                  </ListTableBody>
+                </ListTable>
+              </ListTableWrap>
+            )
+          }
+        />
+      </DataListCard>
     </div>
   );
 }

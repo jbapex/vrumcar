@@ -1,7 +1,23 @@
 import { addCostAction, removeCostAction } from '@/app/[orgSlug]/vehicles/actions';
+import {
+  formFieldClass,
+  formGridClass,
+  formNativeSelectClass,
+  moduleInnerCardClass,
+} from '@/components/layout/module-form';
+import {
+  ListPageEmpty,
+  ListTable,
+  ListTableBody,
+  ListTableCell,
+  ListTableHeadCell,
+  ListTableHeader,
+  ListTableRow,
+  ListTableWrap,
+} from '@/components/layout/list-table';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { ReaisInput } from '@/components/ui/reais-input';
 import { Label } from '@/components/ui/label';
 import { formatDate, formatPriceBRL } from '@/lib/format';
 import { calculateMargin } from '@/modules/vehicles/service';
@@ -35,24 +51,21 @@ export function VehicleCostsPanel({ orgSlug, vehicle }: VehicleCostsPanelProps) 
   });
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1fr_280px]">
-      <div className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Adicionar custo</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form
-              action={addCostAction.bind(null, orgSlug, vehicle.id)}
-              className="grid gap-3 sm:grid-cols-2"
-            >
-              <div className="space-y-2 sm:col-span-2">
+    <div className="grid gap-4 lg:grid-cols-[1fr_220px]">
+      <div className="space-y-4">
+        <div className={moduleInnerCardClass}>
+          <h3 className="mb-3 text-sm font-semibold">Adicionar custo</h3>
+          <form
+            action={addCostAction.bind(null, orgSlug, vehicle.id)}
+            className={formGridClass}
+          >
+              <div className={formFieldClass}>
                 <Label htmlFor="cost-type">Tipo</Label>
                 <select
                   id="cost-type"
                   name="type"
                   required
-                  className="border-input h-10 w-full rounded-md border px-3 text-sm"
+                  className={formNativeSelectClass}
                 >
                   {COST_TYPES.map((t) => (
                     <option key={t.value} value={t.value}>
@@ -61,59 +74,58 @@ export function VehicleCostsPanel({ orgSlug, vehicle }: VehicleCostsPanelProps) 
                   ))}
                 </select>
               </div>
-              <div className="space-y-2 sm:col-span-2">
-                <Label htmlFor="cost-desc">Descrição</Label>
-                <Input id="cost-desc" name="description" required maxLength={200} />
-              </div>
-              <div className="space-y-2">
+              <div className={formFieldClass}>
                 <Label htmlFor="cost-amount">Valor (R$)</Label>
-                <Input
+                <ReaisInput
                   id="cost-amount"
                   name="amountReais"
-                  type="number"
-                  step="0.01"
-                  min="0.01"
                   required
                 />
               </div>
-              <div className="flex items-end">
-                <Button type="submit">Adicionar</Button>
+              <div className={`${formFieldClass} sm:col-span-2`}>
+                <Label htmlFor="cost-desc">Descrição</Label>
+                <Input
+                  id="cost-desc"
+                  name="description"
+                  required
+                  maxLength={200}
+                />
+              </div>
+              <div className="flex items-end sm:col-span-2">
+                <Button type="submit" size="sm">
+                  Adicionar
+                </Button>
               </div>
             </form>
-          </CardContent>
-        </Card>
+        </div>
 
-        <div className="overflow-x-auto rounded-md border">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50">
-              <tr>
-                <th className="p-2 text-left">Data</th>
-                <th className="p-2 text-left">Tipo</th>
-                <th className="p-2 text-left">Descrição</th>
-                <th className="p-2 text-right">Valor</th>
-                <th className="p-2" />
-              </tr>
-            </thead>
-            <tbody>
-              {vehicle.costs.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="text-muted-foreground p-4 text-center">
-                    Nenhum custo lançado.
-                  </td>
-                </tr>
-              ) : (
-                vehicle.costs.map((c) => (
-                  <tr key={c.id} className="border-t">
-                    <td className="p-2">{formatDate(c.occurredAt)}</td>
-                    <td className="p-2">
+        {vehicle.costs.length === 0 ? (
+          <ListPageEmpty className="py-8">
+            <p className="text-center text-xs">Nenhum custo lançado.</p>
+          </ListPageEmpty>
+        ) : (
+          <ListTableWrap>
+            <ListTable>
+              <ListTableHeader>
+                <ListTableHeadCell>Data</ListTableHeadCell>
+                <ListTableHeadCell>Tipo</ListTableHeadCell>
+                <ListTableHeadCell>Descrição</ListTableHeadCell>
+                <ListTableHeadCell className="text-right">Valor</ListTableHeadCell>
+                <ListTableHeadCell className="w-20" />
+              </ListTableHeader>
+              <ListTableBody>
+                {vehicle.costs.map((c) => (
+                  <ListTableRow key={c.id}>
+                    <ListTableCell>{formatDate(c.occurredAt)}</ListTableCell>
+                    <ListTableCell>
                       {COST_TYPES.find((x) => x.value === c.type)?.label ??
                         c.type}
-                    </td>
-                    <td className="p-2">{c.description}</td>
-                    <td className="p-2 text-right">
+                    </ListTableCell>
+                    <ListTableCell>{c.description}</ListTableCell>
+                    <ListTableCell className="text-right">
                       {formatPriceBRL(c.amountCents)}
-                    </td>
-                    <td className="p-2">
+                    </ListTableCell>
+                    <ListTableCell>
                       <form
                         action={removeCostAction.bind(
                           null,
@@ -122,36 +134,39 @@ export function VehicleCostsPanel({ orgSlug, vehicle }: VehicleCostsPanelProps) 
                           vehicle.id,
                         )}
                       >
-                        <Button type="submit" variant="ghost" size="sm">
+                        <Button
+                          type="submit"
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 px-2 text-xs"
+                        >
                           Remover
                         </Button>
                       </form>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                    </ListTableCell>
+                  </ListTableRow>
+                ))}
+              </ListTableBody>
+            </ListTable>
+          </ListTableWrap>
+        )}
       </div>
 
-      <Card className="h-fit">
-        <CardHeader>
-          <CardTitle className="text-base">Resumo</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3 text-sm">
-          <div className="flex justify-between gap-2">
-            <span className="text-muted-foreground">Aquisição</span>
-            <span>{formatPriceBRL(vehicle.acquisitionCostCents)}</span>
-          </div>
-          <div className="flex justify-between gap-2">
-            <span className="text-muted-foreground">Despesas</span>
-            <span>{formatPriceBRL(sumExpenses)}</span>
-          </div>
-          <div className="flex justify-between gap-2 font-medium">
-            <span>Custo total</span>
-            <span>{formatPriceBRL(totalCost)}</span>
-          </div>
+      <div className={`${moduleInnerCardClass} h-fit space-y-2 text-xs`}>
+        <h3 className="text-sm font-semibold">Resumo</h3>
+        <div className="flex justify-between gap-2">
+          <span className="text-muted-foreground">Aquisição</span>
+          <span>{formatPriceBRL(vehicle.acquisitionCostCents)}</span>
+        </div>
+        <div className="flex justify-between gap-2">
+          <span className="text-muted-foreground">Despesas</span>
+          <span>{formatPriceBRL(sumExpenses)}</span>
+        </div>
+        <div className="flex justify-between gap-2 font-medium">
+          <span>Custo total</span>
+          <span>{formatPriceBRL(totalCost)}</span>
+        </div>
+        <div className="border-t border-border/50 pt-2">
           <div className="flex justify-between gap-2">
             <span className="text-muted-foreground">Preço de venda</span>
             <span>{formatPriceBRL(vehicle.salePriceCents)}</span>
@@ -165,13 +180,11 @@ export function VehicleCostsPanel({ orgSlug, vehicle }: VehicleCostsPanelProps) 
           <div className="flex justify-between gap-2">
             <span className="text-muted-foreground">% margem</span>
             <span>
-              {margin
-                ? `${margin.marginPercent.toFixed(1)}%`
-                : '—'}
+              {margin ? `${margin.marginPercent.toFixed(1)}%` : '—'}
             </span>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }

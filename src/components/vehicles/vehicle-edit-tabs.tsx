@@ -21,23 +21,36 @@ export function VehicleEditTabs({
   historico,
 }: VehicleEditTabsProps) {
   return (
-    <Tabs defaultValue="dados" className="w-full gap-4">
-      <TabsList variant="line" className="w-full flex-wrap justify-start">
-        <TabsTrigger value="dados">Dados</TabsTrigger>
-        <TabsTrigger value="fotos">Fotos</TabsTrigger>
-        <TabsTrigger value="custos">Custos</TabsTrigger>
-        <TabsTrigger value="historico">Histórico de preço</TabsTrigger>
-      </TabsList>
-      <TabsContent value="dados" className="mt-4">
+    <Tabs defaultValue="dados" className="w-full gap-0">
+      <div className="border-b border-border/50 px-4 md:px-5">
+        <TabsList
+          variant="line"
+          className="h-10 w-full justify-start gap-1 bg-transparent p-0"
+        >
+          <TabsTrigger value="dados" className="px-3 text-xs">
+            Dados
+          </TabsTrigger>
+          <TabsTrigger value="fotos" className="px-3 text-xs">
+            Fotos
+          </TabsTrigger>
+          <TabsTrigger value="custos" className="px-3 text-xs">
+            Custos
+          </TabsTrigger>
+          <TabsTrigger value="historico" className="px-3 text-xs">
+            Histórico de preço
+          </TabsTrigger>
+        </TabsList>
+      </div>
+      <TabsContent value="dados" className="p-4 md:p-5">
         {dados}
       </TabsContent>
-      <TabsContent value="fotos" className="mt-4">
+      <TabsContent value="fotos" className="p-4 md:p-5">
         {fotos}
       </TabsContent>
-      <TabsContent value="custos" className="mt-4">
+      <TabsContent value="custos" className="p-4 md:p-5">
         {custos}
       </TabsContent>
-      <TabsContent value="historico" className="mt-4">
+      <TabsContent value="historico" className="p-4 md:p-5">
         {historico}
       </TabsContent>
     </Tabs>

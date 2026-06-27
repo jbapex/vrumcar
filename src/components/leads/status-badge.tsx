@@ -20,5 +20,9 @@ const STATUS_CONFIG: Record<
 
 export function LeadStatusBadge({ status }: { status: LeadStatus }) {
   const config = STATUS_CONFIG[status];
-  return <Badge variant={config.variant}>{config.label}</Badge>;
+  return (
+    <Badge variant={config.variant} size="sm">
+      {config.label}
+    </Badge>
+  );
 }

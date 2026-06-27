@@ -12,9 +12,9 @@ export function LeadPriorityBadge({ priority }: { priority: LeadPriority }) {
   const config = CONFIG[priority];
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${config.className}`}
+      className={`inline-flex h-[1.375rem] items-center gap-0.5 rounded-full px-1.5 text-[0.6875rem] font-medium ${config.className}`}
     >
-      {priority === 'HOT' && <Flame className="h-3 w-3" />}
+      {priority === 'HOT' && <Flame className="size-2.5" />}
       {config.label}
     </span>
   );

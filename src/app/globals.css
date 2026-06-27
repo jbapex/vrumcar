@@ -77,7 +77,7 @@
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
   --radius: 0.75rem;
-  /* Sidebar = mesma cor dos botões primários; item ativo em pill clara */
+  /* Sidebar roxa (marca VrumCar) */
   --sidebar: var(--primary);
   --sidebar-foreground: var(--primary-foreground);
   --sidebar-primary: var(--primary-foreground);
