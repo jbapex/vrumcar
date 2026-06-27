@@ -1,5 +1,6 @@
 'use server';
 
+import { AuthError } from 'next-auth';
 import { signIn } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { redirect } from 'next/navigation';
@@ -11,20 +12,18 @@ export async function loginAction(formData: FormData) {
   const email = String(formData.get('email') ?? '');
   const password = String(formData.get('password') ?? '');
 
-  const nextUrl = await signIn('credentials', {
-    email,
-    password,
-    redirect: false,
-    redirectTo: '/',
-  });
-
-  const url = String(nextUrl ?? '');
-  if (
-    url.includes('error=') ||
-    url.includes('/api/auth/signin') ||
-    url.includes('CredentialsSignin')
-  ) {
-    redirect('/login?error=CredentialsSignin');
+  try {
+    await signIn('credentials', {
+      email,
+      password,
+      redirect: false,
+      redirectTo: '/',
+    });
+  } catch (err) {
+    if (err instanceof AuthError) {
+      redirect('/login?error=CredentialsSignin');
+    }
+    throw err;
   }
 
   const normalized = email.trim().toLowerCase();
