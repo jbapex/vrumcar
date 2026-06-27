@@ -18,23 +18,27 @@ export type ConversationListItem = {
   status: ConversationStatus;
   leadId: string | null;
   lead: { id: string; name: string; status: LeadStatus } | null;
+  assignedTo: { id: string; name: string | null; email: string } | null;
 };
 
 interface Props {
   orgSlug: string;
   items: ConversationListItem[];
   activeConversationId?: string;
+  tab?: 'inbox' | 'attending' | 'resolved';
 }
 
 export function ConversationList({
   orgSlug,
   items,
   activeConversationId,
+  tab,
 }: Props) {
   return (
     <div className="flex flex-col divide-y border-r border-zinc-200 bg-white dark:divide-zinc-800 dark:border-zinc-800 dark:bg-zinc-950">
       {items.map((c) => {
-        const href = `/${orgSlug}/inbox/${c.id}`;
+        const tabQuery = tab ? `?tab=${tab}` : '';
+        const href = `/${orgSlug}/inbox/${c.id}${tabQuery}`;
         const active = c.id === activeConversationId;
         const title =
           c.contactName?.trim() || formatPhone(c.phoneNumber) || c.phoneNumber;
@@ -66,6 +70,11 @@ export function ConversationList({
                 <p className="text-muted-foreground truncate text-sm">
                   {preview}
                 </p>
+                {c.assignedTo ? (
+                  <span className="shrink-0 text-[10px] text-zinc-500">
+                    👤 {c.assignedTo.name ?? 'atendendo'}
+                  </span>
+                ) : null}
                 {c.leadId ? (
                   <Users
                     className="text-muted-foreground h-3.5 w-3.5 shrink-0"

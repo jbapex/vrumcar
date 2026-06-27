@@ -1,6 +1,10 @@
 'use client';
 
-import { sendMessageAction } from '@/app/[orgSlug]/inbox/actions';
+import {
+  attendConversationAction,
+  resolveConversationAction,
+  sendMessageAction,
+} from '@/app/[orgSlug]/inbox/actions';
 import { ContactAvatar } from '@/components/inbox/contact-avatar';
 import { ContactPanel } from '@/components/inbox/contact-panel';
 import { AudioMessage } from '@/components/inbox/media/audio-message';
@@ -16,8 +20,10 @@ import {
   AlertCircle,
   Check,
   CheckCheck,
+  CheckCircle2,
   Clock,
   Send,
+  UserPlus,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -47,6 +53,9 @@ interface ChatViewProps {
     };
     createdAt: Date | string;
     lastMessageAt: Date | string | null;
+    assignedToId: string | null;
+    assignedTo: { id: string; name: string | null; email: string } | null;
+    status: string;
   };
   messages: Message[];
 }
@@ -144,6 +153,28 @@ export function ChatView({ orgSlug, conversation, messages }: ChatViewProps) {
     }
   };
 
+  const handleAttend = () => {
+    startTransition(async () => {
+      try {
+        await attendConversationAction(orgSlug, conversation.id);
+        router.refresh();
+      } catch (err) {
+        alert(err instanceof Error ? err.message : 'Erro');
+      }
+    });
+  };
+
+  const handleResolve = () => {
+    startTransition(async () => {
+      try {
+        await resolveConversationAction(orgSlug, conversation.id);
+        router.refresh();
+      } catch (err) {
+        alert(err instanceof Error ? err.message : 'Erro');
+      }
+    });
+  };
+
   const displayName =
     conversation.contactName?.trim() ||
     formatPhone(conversation.phoneNumber) ||
@@ -171,14 +202,54 @@ export function ChatView({ orgSlug, conversation, messages }: ChatViewProps) {
                 </p>
               </div>
             </button>
-            {conversation.lead ? (
-              <Link
-                href={`/${orgSlug}/leads/${conversation.lead.id}`}
-                className="shrink-0 rounded-md bg-purple-50 px-2 py-1 text-xs text-purple-700 hover:bg-purple-100 dark:bg-purple-950/50 dark:text-purple-300 dark:hover:bg-purple-950"
-              >
-                Ver lead → {conversation.lead.name}
-              </Link>
-            ) : null}
+            <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+              {!conversation.assignedToId ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handleAttend}
+                  disabled={isPending}
+                >
+                  <UserPlus className="mr-1 h-3 w-3" />
+                  Atender
+                </Button>
+              ) : null}
+              {conversation.assignedToId &&
+              conversation.status === 'OPEN' ? (
+                <>
+                  {conversation.assignedTo ? (
+                    <span className="text-xs text-zinc-500">
+                      Atendido por{' '}
+                      {conversation.assignedTo.name ??
+                        conversation.assignedTo.email}
+                    </span>
+                  ) : null}
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={handleResolve}
+                    disabled={isPending}
+                  >
+                    <CheckCircle2 className="mr-1 h-3 w-3" />
+                    Encerrar atendimento
+                  </Button>
+                </>
+              ) : null}
+              {conversation.status === 'RESOLVED' ? (
+                <span className="rounded-md bg-green-50 px-2 py-1 text-xs text-green-700 dark:bg-green-950/40 dark:text-green-300">
+                  ✓ Resolvido
+                </span>
+              ) : null}
+              {conversation.lead ? (
+                <Link
+                  href={`/${orgSlug}/leads/${conversation.lead.id}`}
+                  className="shrink-0 rounded-md bg-purple-50 px-2 py-1 text-xs text-purple-700 hover:bg-purple-100 dark:bg-purple-950/50 dark:text-purple-300 dark:hover:bg-purple-950"
+                >
+                  Ver lead → {conversation.lead.name}
+                </Link>
+              ) : null}
+            </div>
           </div>
         </div>
 

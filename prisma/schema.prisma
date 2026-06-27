@@ -110,6 +110,7 @@ model User {
   assignedLeads   Lead[]       @relation("LeadAssignedTo")
   sales           Sale[]       @relation("SalesSalesPerson")
   assignedConversations Conversation[] @relation("ConversationAssignedTo")
+  resolvedConversations Conversation[] @relation("ConversationResolvedBy")
   sentMessages          Message[]      @relation("MessageSentBy")
 
   @@map("users")
@@ -639,6 +640,10 @@ model Conversation {
   status           ConversationStatus @default(OPEN)
   assignedToId     String?            @map("assigned_to_id")
   assignedTo       User?              @relation("ConversationAssignedTo", fields: [assignedToId], references: [id])
+  assignedAt       DateTime?          @map("assigned_at")
+  resolvedAt       DateTime?          @map("resolved_at")
+  resolvedByUserId String?            @map("resolved_by_user_id")
+  resolvedBy       User?              @relation("ConversationResolvedBy", fields: [resolvedByUserId], references: [id], onDelete: SetNull)
   unreadCount      Int                @default(0) @map("unread_count")
   lastMessageAt    DateTime?          @map("last_message_at")
   lastMessagePreview String?         @map("last_message_preview")

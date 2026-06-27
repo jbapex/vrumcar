@@ -5,7 +5,9 @@ import { redirect } from 'next/navigation';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import {
+  assignConversation,
   markConversationAsRead,
+  resolveConversation,
   sendTextMessage,
 } from '@/modules/channels/conversation-service';
 import { sendTextMessageSchema } from '@/modules/channels/schemas';
@@ -85,4 +87,36 @@ export async function updateLeadNotesAction(
   });
 
   revalidatePath(`/${orgSlug}/inbox`);
+}
+
+export async function attendConversationAction(
+  orgSlug: string,
+  conversationId: string,
+) {
+  const { org, userId } = await requireOrgAccess(orgSlug);
+
+  try {
+    await assignConversation(org.id, conversationId, userId);
+  } catch (err) {
+    throw new Error(err instanceof Error ? err.message : 'Erro ao atender');
+  }
+
+  revalidatePath(`/${orgSlug}/inbox`);
+  revalidatePath(`/${orgSlug}/inbox/${conversationId}`);
+}
+
+export async function resolveConversationAction(
+  orgSlug: string,
+  conversationId: string,
+) {
+  const { org, userId } = await requireOrgAccess(orgSlug);
+
+  try {
+    await resolveConversation(org.id, conversationId, userId);
+  } catch (err) {
+    throw new Error(err instanceof Error ? err.message : 'Erro ao resolver');
+  }
+
+  revalidatePath(`/${orgSlug}/inbox`);
+  revalidatePath(`/${orgSlug}/inbox/${conversationId}`);
 }

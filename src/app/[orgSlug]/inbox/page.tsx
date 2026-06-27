@@ -3,11 +3,29 @@ import { prisma } from '@/lib/db';
 import { listConversations } from '@/modules/channels/conversation-service';
 import type { ConversationListItem } from '@/components/inbox/conversation-list';
 import { ConversationList } from '@/components/inbox/conversation-list';
+import { ConversationTabs } from '@/components/inbox/conversation-tabs';
 import { InboxPoller } from '@/components/inbox/inbox-poller';
 import { buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
+
+type InboxTab = 'inbox' | 'attending' | 'resolved';
+
+function parseInboxTab(
+  raw: string | string[] | undefined,
+): InboxTab {
+  const v = Array.isArray(raw) ? raw[0] : raw;
+  if (v === 'attending' || v === 'resolved') return v;
+  return 'inbox';
+}
+
+function parseSearch(
+  raw: string | string[] | undefined,
+): string | undefined {
+  const v = Array.isArray(raw) ? raw[0] : raw;
+  return v?.trim() || undefined;
+}
 
 export default async function InboxPage({
   params,
@@ -16,13 +34,15 @@ export default async function InboxPage({
   params: Promise<{ orgSlug: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  void searchParams;
   const session = await auth();
   if (!session?.user?.id) {
     redirect('/login');
   }
 
   const { orgSlug } = await params;
+  const sp = await searchParams;
+  const tab = parseInboxTab(sp.tab);
+  const search = parseSearch(sp.search);
 
   const org = await prisma.organization.findUnique({
     where: { slug: orgSlug },
@@ -46,23 +66,39 @@ export default async function InboxPage({
     },
   });
 
-  const { items } = await listConversations(org.id, {
-    page: 1,
-    pageSize: 100,
-  });
+  const [
+    conversationsResult,
+    inboxCount,
+    attendingCount,
+    resolvedCount,
+  ] = await Promise.all([
+    listConversations(org.id, { tab, search, page: 1, pageSize: 100 }),
+    listConversations(org.id, { tab: 'inbox', pageSize: 1 }),
+    listConversations(org.id, { tab: 'attending', pageSize: 1 }),
+    listConversations(org.id, { tab: 'resolved', pageSize: 1 }),
+  ]);
 
-  const listItems: ConversationListItem[] = items.map((c) => ({
-    id: c.id,
-    contactName: c.contactName,
-    contactAvatar: c.contactAvatar,
-    phoneNumber: c.phoneNumber,
-    lastMessagePreview: c.lastMessagePreview,
-    lastMessageAt: c.lastMessageAt,
-    unreadCount: c.unreadCount,
-    status: c.status,
-    leadId: c.leadId,
-    lead: c.lead,
-  }));
+  const listItems: ConversationListItem[] = conversationsResult.items.map(
+    (c) => ({
+      id: c.id,
+      contactName: c.contactName,
+      contactAvatar: c.contactAvatar,
+      phoneNumber: c.phoneNumber,
+      lastMessagePreview: c.lastMessagePreview,
+      lastMessageAt: c.lastMessageAt,
+      unreadCount: c.unreadCount,
+      status: c.status,
+      leadId: c.leadId,
+      lead: c.lead,
+      assignedTo: c.assignedTo,
+    }),
+  );
+
+  const emptyMessages: Record<InboxTab, string> = {
+    inbox: 'Nenhuma conversa na entrada.',
+    attending: 'Nenhuma conversa em atendimento.',
+    resolved: 'Nenhuma conversa resolvida.',
+  };
 
   return (
     <div className="flex min-h-[calc(100dvh-5rem)] flex-col md:flex-row md:overflow-hidden">
@@ -71,6 +107,15 @@ export default async function InboxPage({
           <h1 className="text-lg font-semibold tracking-tight">Atendimento</h1>
           <p className="text-muted-foreground text-xs">WhatsApp</p>
         </div>
+        <ConversationTabs
+          orgSlug={orgSlug}
+          currentTab={tab}
+          counts={{
+            inbox: inboxCount.total,
+            attending: attendingCount.total,
+            resolved: resolvedCount.total,
+          }}
+        />
         <div className="min-h-0 flex-1 overflow-y-auto">
           {listItems.length === 0 ? (
             <div className="text-muted-foreground space-y-3 p-6 text-center text-sm">
@@ -86,11 +131,11 @@ export default async function InboxPage({
                   </Link>
                 </>
               ) : (
-                <p>Aguardando mensagens…</p>
+                <p>{emptyMessages[tab]}</p>
               )}
             </div>
           ) : (
-            <ConversationList orgSlug={orgSlug} items={listItems} />
+            <ConversationList orgSlug={orgSlug} items={listItems} tab={tab} />
           )}
         </div>
       </aside>

@@ -218,6 +218,11 @@ export async function ingestIncomingMessage(
     },
   );
 
+  // Se a conversa tava resolvida e cliente mandou mensagem, reabre
+  if (!fromMe && conversation.status === 'RESOLVED') {
+    await reopenConversationIfResolved(organizationId, conversation.id);
+  }
+
   // Decide se o texto vai como conteúdo principal ou como caption de mídia
   const isMediaType = ['IMAGE', 'AUDIO', 'VIDEO', 'DOCUMENT'].includes(
     mappedType,
@@ -439,6 +444,7 @@ export async function listConversations(
   params: {
     search?: string;
     status?: string;
+    tab?: 'inbox' | 'attending' | 'resolved' | 'all';
     page?: number;
     pageSize?: number;
   } = {},
@@ -448,6 +454,17 @@ export async function listConversations(
   const pageSize = params.pageSize ?? 50;
 
   const where: Prisma.ConversationWhereInput = { deletedAt: null };
+
+  if (params.tab === 'inbox') {
+    where.assignedToId = null;
+    where.status = { not: 'RESOLVED' };
+  } else if (params.tab === 'attending') {
+    where.assignedToId = { not: null };
+    where.status = 'OPEN';
+  } else if (params.tab === 'resolved') {
+    where.status = 'RESOLVED';
+  }
+
   if (params.status) {
     where.status = params.status as ConversationStatus;
   }
@@ -466,6 +483,7 @@ export async function listConversations(
       include: {
         lead: { select: { id: true, name: true, status: true } },
         channelInstance: { select: { id: true, name: true, status: true } },
+        assignedTo: { select: { id: true, name: true, email: true } },
       },
       orderBy: { lastMessageAt: 'desc' },
       skip: (page - 1) * pageSize,
@@ -508,5 +526,84 @@ export async function markConversationAsRead(
   await db.conversation.update({
     where: { id: conversationId },
     data: { unreadCount: 0 },
+  });
+}
+
+/**
+ * Vendedor "atende" uma conversa: vira dono dela.
+ * Só funciona se a conversa não tem dono ainda OU se o user atual
+ * já é o dono (idempotente).
+ */
+export async function assignConversation(
+  organizationId: string,
+  conversationId: string,
+  userId: string,
+): Promise<void> {
+  const db = getTenantPrisma(organizationId);
+
+  const conv = await db.conversation.findFirst({
+    where: { id: conversationId, deletedAt: null },
+  });
+  if (!conv) throw new Error('Conversa não encontrada');
+
+  if (conv.assignedToId && conv.assignedToId !== userId) {
+    throw new Error('Esta conversa já está sendo atendida por outro vendedor');
+  }
+
+  await db.conversation.update({
+    where: { id: conversationId },
+    data: {
+      assignedToId: userId,
+      assignedAt: new Date(),
+      status: 'OPEN',
+    },
+  });
+}
+
+/**
+ * Resolve (encerra) uma conversa.
+ */
+export async function resolveConversation(
+  organizationId: string,
+  conversationId: string,
+  userId: string,
+): Promise<void> {
+  const db = getTenantPrisma(organizationId);
+
+  const conv = await db.conversation.findFirst({
+    where: { id: conversationId, deletedAt: null },
+  });
+  if (!conv) throw new Error('Conversa não encontrada');
+
+  await db.conversation.update({
+    where: { id: conversationId },
+    data: {
+      status: 'RESOLVED',
+      resolvedAt: new Date(),
+      resolvedByUserId: userId,
+    },
+  });
+}
+
+/**
+ * Reabre uma conversa resolvida automaticamente quando cliente
+ * manda nova mensagem. Mantém o dono anterior.
+ */
+export async function reopenConversationIfResolved(
+  organizationId: string,
+  conversationId: string,
+): Promise<void> {
+  const db = getTenantPrisma(organizationId);
+
+  await db.conversation.updateMany({
+    where: {
+      id: conversationId,
+      status: 'RESOLVED',
+    },
+    data: {
+      status: 'OPEN',
+      resolvedAt: null,
+      resolvedByUserId: null,
+    },
   });
 }
