@@ -4,6 +4,7 @@ import { getTenantPrisma } from '@/lib/db/tenant';
 import {
   listConversations,
   listMessages,
+  listTeamMembers,
 } from '@/modules/channels/conversation-service';
 import type { ConversationListItem } from '@/components/inbox/conversation-list';
 import { ChatView } from '@/components/inbox/chat-view';
@@ -33,6 +34,13 @@ function parseSearch(
   return v?.trim() || undefined;
 }
 
+function parseOnlyMine(
+  raw: string | string[] | undefined,
+): boolean {
+  const v = Array.isArray(raw) ? raw[0] : raw;
+  return v === 'true';
+}
+
 export default async function InboxConversationPage({
   params,
   searchParams,
@@ -49,6 +57,7 @@ export default async function InboxConversationPage({
   const sp = await searchParams;
   const tab = parseInboxTab(sp.tab);
   const search = parseSearch(sp.search);
+  const onlyMine = parseOnlyMine(sp.mine);
 
   const org = await prisma.organization.findUnique({
     where: { slug: orgSlug },
@@ -63,6 +72,10 @@ export default async function InboxConversationPage({
   if (!org || org.memberships.length === 0) {
     notFound();
   }
+
+  const membership = org.memberships[0]!;
+  const userRole = membership.role;
+  const userId = session.user.id;
 
   const db = getTenantPrisma(org.id);
   const conversation = await db.conversation.findFirst({
@@ -96,11 +109,38 @@ export default async function InboxConversationPage({
     inboxCount,
     attendingCount,
     resolvedCount,
+    teamMembers,
   ] = await Promise.all([
-    listConversations(org.id, { tab, search, page: 1, pageSize: 100 }),
-    listConversations(org.id, { tab: 'inbox', pageSize: 1 }),
-    listConversations(org.id, { tab: 'attending', pageSize: 1 }),
-    listConversations(org.id, { tab: 'resolved', pageSize: 1 }),
+    listConversations(org.id, {
+      tab,
+      search,
+      userId,
+      userRole,
+      onlyMine,
+      page: 1,
+      pageSize: 100,
+    }),
+    listConversations(org.id, {
+      tab: 'inbox',
+      userId,
+      userRole,
+      pageSize: 1,
+    }),
+    listConversations(org.id, {
+      tab: 'attending',
+      userId,
+      userRole,
+      onlyMine,
+      pageSize: 1,
+    }),
+    listConversations(org.id, {
+      tab: 'resolved',
+      userId,
+      userRole,
+      onlyMine,
+      pageSize: 1,
+    }),
+    listTeamMembers(org.id),
   ]);
 
   const listItems: ConversationListItem[] = conversationsResult.items.map(
@@ -150,6 +190,8 @@ export default async function InboxConversationPage({
           <ConversationTabs
             orgSlug={orgSlug}
             currentTab={tab}
+            userRole={userRole}
+            onlyMine={onlyMine}
             activeConversationId={conversationId}
             counts={{
               inbox: inboxCount.total,
@@ -180,6 +222,7 @@ export default async function InboxConversationPage({
                 items={listItems}
                 activeConversationId={conversationId}
                 tab={tab}
+                onlyMine={onlyMine}
               />
             )}
           </div>
@@ -202,6 +245,7 @@ export default async function InboxConversationPage({
               status: conversation.status,
             }}
             messages={messages}
+            teamMembers={teamMembers}
           />
         </main>
       </div>

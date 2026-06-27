@@ -27,6 +27,13 @@ function parseSearch(
   return v?.trim() || undefined;
 }
 
+function parseOnlyMine(
+  raw: string | string[] | undefined,
+): boolean {
+  const v = Array.isArray(raw) ? raw[0] : raw;
+  return v === 'true';
+}
+
 export default async function InboxPage({
   params,
   searchParams,
@@ -43,6 +50,7 @@ export default async function InboxPage({
   const sp = await searchParams;
   const tab = parseInboxTab(sp.tab);
   const search = parseSearch(sp.search);
+  const onlyMine = parseOnlyMine(sp.mine);
 
   const org = await prisma.organization.findUnique({
     where: { slug: orgSlug },
@@ -58,6 +66,10 @@ export default async function InboxPage({
     notFound();
   }
 
+  const membership = org.memberships[0]!;
+  const userRole = membership.role;
+  const userId = session.user.id;
+
   const connectedChannels = await prisma.channelInstance.count({
     where: {
       organizationId: org.id,
@@ -72,10 +84,35 @@ export default async function InboxPage({
     attendingCount,
     resolvedCount,
   ] = await Promise.all([
-    listConversations(org.id, { tab, search, page: 1, pageSize: 100 }),
-    listConversations(org.id, { tab: 'inbox', pageSize: 1 }),
-    listConversations(org.id, { tab: 'attending', pageSize: 1 }),
-    listConversations(org.id, { tab: 'resolved', pageSize: 1 }),
+    listConversations(org.id, {
+      tab,
+      search,
+      userId,
+      userRole,
+      onlyMine,
+      page: 1,
+      pageSize: 100,
+    }),
+    listConversations(org.id, {
+      tab: 'inbox',
+      userId,
+      userRole,
+      pageSize: 1,
+    }),
+    listConversations(org.id, {
+      tab: 'attending',
+      userId,
+      userRole,
+      onlyMine,
+      pageSize: 1,
+    }),
+    listConversations(org.id, {
+      tab: 'resolved',
+      userId,
+      userRole,
+      onlyMine,
+      pageSize: 1,
+    }),
   ]);
 
   const listItems: ConversationListItem[] = conversationsResult.items.map(
@@ -110,6 +147,8 @@ export default async function InboxPage({
         <ConversationTabs
           orgSlug={orgSlug}
           currentTab={tab}
+          userRole={userRole}
+          onlyMine={onlyMine}
           counts={{
             inbox: inboxCount.total,
             attending: attendingCount.total,
@@ -135,7 +174,12 @@ export default async function InboxPage({
               )}
             </div>
           ) : (
-            <ConversationList orgSlug={orgSlug} items={listItems} tab={tab} />
+            <ConversationList
+              orgSlug={orgSlug}
+              items={listItems}
+              tab={tab}
+              onlyMine={onlyMine}
+            />
           )}
         </div>
       </aside>

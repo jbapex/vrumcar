@@ -7,6 +7,7 @@ import { prisma } from '@/lib/db';
 import {
   assignConversation,
   markConversationAsRead,
+  reassignConversation,
   resolveConversation,
   sendTextMessage,
 } from '@/modules/channels/conversation-service';
@@ -115,6 +116,25 @@ export async function resolveConversationAction(
     await resolveConversation(org.id, conversationId, userId);
   } catch (err) {
     throw new Error(err instanceof Error ? err.message : 'Erro ao resolver');
+  }
+
+  revalidatePath(`/${orgSlug}/inbox`);
+  revalidatePath(`/${orgSlug}/inbox/${conversationId}`);
+}
+
+export async function reassignConversationAction(
+  orgSlug: string,
+  conversationId: string,
+  newUserId: string,
+) {
+  const { org, userId } = await requireOrgAccess(orgSlug);
+
+  try {
+    await reassignConversation(org.id, conversationId, newUserId, userId);
+  } catch (err) {
+    throw new Error(
+      err instanceof Error ? err.message : 'Erro ao reatribuir',
+    );
   }
 
   revalidatePath(`/${orgSlug}/inbox`);

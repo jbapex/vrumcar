@@ -7,6 +7,7 @@ import {
 } from '@/app/[orgSlug]/inbox/actions';
 import { ContactAvatar } from '@/components/inbox/contact-avatar';
 import { ContactPanel } from '@/components/inbox/contact-panel';
+import { ReassignButton } from '@/components/inbox/reassign-button';
 import { AudioMessage } from '@/components/inbox/media/audio-message';
 import { DocumentMessage } from '@/components/inbox/media/document-message';
 import { ImageMessage } from '@/components/inbox/media/image-message';
@@ -58,6 +59,12 @@ interface ChatViewProps {
     status: string;
   };
   messages: Message[];
+  teamMembers: Array<{
+    userId: string;
+    name: string | null;
+    email: string;
+    role: string;
+  }>;
 }
 
 function getMessageCopyText(msg: Message): string | null {
@@ -114,7 +121,12 @@ function nonTextLabel(type: Message['type']): string {
   }
 }
 
-export function ChatView({ orgSlug, conversation, messages }: ChatViewProps) {
+export function ChatView({
+  orgSlug,
+  conversation,
+  messages,
+  teamMembers,
+}: ChatViewProps) {
   const router = useRouter();
   const [text, setText] = useState('');
   const [contactPanelOpen, setContactPanelOpen] = useState(false);
@@ -224,6 +236,12 @@ export function ChatView({ orgSlug, conversation, messages }: ChatViewProps) {
                         conversation.assignedTo.email}
                     </span>
                   ) : null}
+                  <ReassignButton
+                    orgSlug={orgSlug}
+                    conversationId={conversation.id}
+                    currentAssignedId={conversation.assignedToId}
+                    teamMembers={teamMembers}
+                  />
                   <Button
                     type="button"
                     size="sm"

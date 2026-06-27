@@ -111,7 +111,7 @@ export function VehicleCostsPanel({ orgSlug, vehicle }: VehicleCostsPanelProps) 
                 <ListTableHeadCell>Tipo</ListTableHeadCell>
                 <ListTableHeadCell>Descrição</ListTableHeadCell>
                 <ListTableHeadCell className="text-right">Valor</ListTableHeadCell>
-                <ListTableHeadCell className="w-20" />
+                <ListTableHeadCell className="w-20">{' '}</ListTableHeadCell>
               </ListTableHeader>
               <ListTableBody>
                 {vehicle.costs.map((c) => (

@@ -6,6 +6,7 @@ import type {
   MessageType,
   Prisma,
 } from '@prisma/client';
+import { prisma } from '@/lib/db';
 import { getTenantPrisma } from '@/lib/db/tenant';
 import { decrypt } from '@/lib/crypto';
 import { getInstanceClient } from './providers/uazapi/client';
@@ -445,6 +446,9 @@ export async function listConversations(
     search?: string;
     status?: string;
     tab?: 'inbox' | 'attending' | 'resolved' | 'all';
+    userId?: string;
+    userRole?: string;
+    onlyMine?: boolean;
     page?: number;
     pageSize?: number;
   } = {},
@@ -455,17 +459,26 @@ export async function listConversations(
 
   const where: Prisma.ConversationWhereInput = { deletedAt: null };
 
+  const isSales = params.userRole === 'SALES';
+  const filterByOwner = isSales || params.onlyMine;
+
   if (params.tab === 'inbox') {
     where.assignedToId = null;
     where.status = { not: 'RESOLVED' };
   } else if (params.tab === 'attending') {
-    where.assignedToId = { not: null };
     where.status = 'OPEN';
+    where.assignedToId = { not: null };
+    if (filterByOwner && params.userId) {
+      where.assignedToId = params.userId;
+    }
   } else if (params.tab === 'resolved') {
     where.status = 'RESOLVED';
+    if (filterByOwner && params.userId) {
+      where.resolvedByUserId = params.userId;
+    }
   }
 
-  if (params.status) {
+  if (params.status && !params.tab) {
     where.status = params.status as ConversationStatus;
   }
   if (params.search) {
@@ -606,4 +619,70 @@ export async function reopenConversationIfResolved(
       resolvedByUserId: null,
     },
   });
+}
+
+/**
+ * Reatribui conversa pra outro membro da equipe.
+ * Qualquer role pode reatribuir (SALES passa pro colega,
+ * MANAGER redistribui carga).
+ */
+export async function reassignConversation(
+  organizationId: string,
+  conversationId: string,
+  newUserId: string,
+  _reassignedByUserId: string,
+): Promise<void> {
+  const db = getTenantPrisma(organizationId);
+
+  const conv = await db.conversation.findFirst({
+    where: { id: conversationId, deletedAt: null },
+  });
+  if (!conv) throw new Error('Conversa não encontrada');
+
+  const membership = await prisma.membership.findFirst({
+    where: {
+      organizationId,
+      userId: newUserId,
+      isActive: true,
+    },
+  });
+  if (!membership) {
+    throw new Error('Usuário não pertence a esta organização');
+  }
+
+  await db.conversation.update({
+    where: { id: conversationId },
+    data: {
+      assignedToId: newUserId,
+      assignedAt: new Date(),
+      status: 'OPEN',
+      resolvedAt: null,
+      resolvedByUserId: null,
+    },
+  });
+}
+
+/**
+ * Lista membros ativos da organização (pra dropdown de reatribuir).
+ */
+export async function listTeamMembers(organizationId: string) {
+  const members = await prisma.membership.findMany({
+    where: {
+      organizationId,
+      isActive: true,
+    },
+    include: {
+      user: {
+        select: { id: true, name: true, email: true },
+      },
+    },
+    orderBy: { user: { name: 'asc' } },
+  });
+
+  return members.map((m) => ({
+    userId: m.user.id,
+    name: m.user.name,
+    email: m.user.email,
+    role: m.role,
+  }));
 }

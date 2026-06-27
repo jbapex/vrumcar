@@ -26,6 +26,7 @@ interface Props {
   items: ConversationListItem[];
   activeConversationId?: string;
   tab?: 'inbox' | 'attending' | 'resolved';
+  onlyMine?: boolean;
 }
 
 export function ConversationList({
@@ -33,11 +34,16 @@ export function ConversationList({
   items,
   activeConversationId,
   tab,
+  onlyMine,
 }: Props) {
   return (
     <div className="flex flex-col divide-y border-r border-zinc-200 bg-white dark:divide-zinc-800 dark:border-zinc-800 dark:bg-zinc-950">
       {items.map((c) => {
-        const tabQuery = tab ? `?tab=${tab}` : '';
+        const params = new URLSearchParams();
+        if (tab) params.set('tab', tab);
+        if (onlyMine) params.set('mine', 'true');
+        const qs = params.toString();
+        const tabQuery = qs ? `?${qs}` : '';
         const href = `/${orgSlug}/inbox/${c.id}${tabQuery}`;
         const active = c.id === activeConversationId;
         const title =
