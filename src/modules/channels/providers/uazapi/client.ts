@@ -106,6 +106,45 @@ export class UazapiClient {
   }
 
   /**
+   * Envia imagem via URL pública.
+   * Endpoint: POST /send/image
+   */
+  async sendImage(params: {
+    phone: string;
+    image: string;
+    caption?: string;
+  }): Promise<Record<string, unknown>> {
+    return this.request<Record<string, unknown>>('POST', '/send/image', params);
+  }
+
+  /**
+   * Envia áudio via URL pública.
+   * Endpoint: POST /send/audio
+   */
+  async sendAudio(params: {
+    phone: string;
+    audio: string;
+  }): Promise<Record<string, unknown>> {
+    return this.request<Record<string, unknown>>('POST', '/send/audio', params);
+  }
+
+  /**
+   * Envia documento via URL pública.
+   * Endpoint: POST /send/document
+   */
+  async sendDocument(params: {
+    phone: string;
+    document: string;
+    fileName?: string;
+  }): Promise<Record<string, unknown>> {
+    return this.request<Record<string, unknown>>(
+      'POST',
+      '/send/document',
+      params,
+    );
+  }
+
+  /**
    * Baixa o conteúdo de uma mídia (imagem, áudio, documento, vídeo).
    * uazapi devolve fileURL ou base64 dependendo do tipo.
    *

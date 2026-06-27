@@ -9,6 +9,7 @@ import type {
 import { prisma } from '@/lib/db';
 import { getTenantPrisma } from '@/lib/db/tenant';
 import { decrypt } from '@/lib/crypto';
+import { ensureBucket, uploadBuffer } from '@/lib/storage/upload';
 import { getInstanceClient } from './providers/uazapi/client';
 import type { UazapiMessageData } from './providers/uazapi/types';
 import { UazapiError } from './providers/uazapi/types';
@@ -685,4 +686,128 @@ export async function listTeamMembers(organizationId: string) {
     email: m.user.email,
     role: m.role,
   }));
+}
+
+/**
+ * Envia uma mensagem de mídia (imagem, áudio ou documento).
+ *
+ * Fluxo:
+ * 1. Upload do buffer pro MinIO → gera URL pública
+ * 2. Cria Message OUTBOUND no banco com mediaUrl
+ * 3. Envia pro uazapi via sendImage/sendAudio/sendDocument
+ * 4. Atualiza Message com externalMessageId do uazapi
+ */
+export async function sendMediaMessage(
+  organizationId: string,
+  conversationId: string,
+  userId: string,
+  file: {
+    buffer: Buffer;
+    mimeType: string;
+    originalName: string;
+    sizeBytes: number;
+  },
+  caption?: string,
+): Promise<Message> {
+  const db = getTenantPrisma(organizationId);
+
+  const conversation = await db.conversation.findFirst({
+    where: { id: conversationId, deletedAt: null },
+    include: { channelInstance: true },
+  });
+  if (!conversation) throw new Error('Conversa não encontrada');
+  if (!conversation.channelInstance.encryptedToken) {
+    throw new Error('Canal sem token configurado');
+  }
+
+  let messageType: 'IMAGE' | 'AUDIO' | 'DOCUMENT';
+  if (file.mimeType.startsWith('image/')) {
+    messageType = 'IMAGE';
+  } else if (file.mimeType.startsWith('audio/')) {
+    messageType = 'AUDIO';
+  } else {
+    messageType = 'DOCUMENT';
+  }
+
+  await ensureBucket();
+  const ext = file.originalName.split('.').pop()?.toLowerCase() ?? 'bin';
+  const key = `whatsapp/${organizationId}/${conversationId}/sent-${Date.now()}.${ext}`;
+  const { url: mediaUrl } = await uploadBuffer({
+    key,
+    buffer: file.buffer,
+    contentType: file.mimeType,
+  });
+
+  const message = await db.message.create({
+    data: {
+      organizationId,
+      conversationId,
+      type: messageType,
+      text: null,
+      mediaUrl,
+      mediaMimeType: file.mimeType,
+      mediaSizeBytes: file.sizeBytes,
+      mediaFileName: file.originalName,
+      mediaCaption: caption || null,
+      direction: 'OUTBOUND',
+      status: 'PENDING',
+      sentByUserId: userId,
+    },
+  });
+
+  await db.conversation.update({
+    where: { id: conversationId },
+    data: { lastMessageAt: new Date() },
+  });
+
+  try {
+    const token = decrypt(conversation.channelInstance.encryptedToken);
+    const client = getInstanceClient(token);
+    const phone = conversation.externalChatId;
+
+    let response: Record<string, unknown>;
+
+    if (messageType === 'IMAGE') {
+      response = await client.sendImage({
+        phone,
+        image: mediaUrl,
+        caption: caption || undefined,
+      });
+    } else if (messageType === 'AUDIO') {
+      response = await client.sendAudio({
+        phone,
+        audio: mediaUrl,
+      });
+    } else {
+      response = await client.sendDocument({
+        phone,
+        document: mediaUrl,
+        fileName: file.originalName,
+      });
+    }
+
+    const externalId =
+      response.messageid ??
+      response.id ??
+      (response.key as Record<string, unknown> | undefined)?.id;
+
+    return await db.message.update({
+      where: { id: message.id },
+      data: {
+        status: 'SENT',
+        externalMessageId: externalId ? String(externalId) : null,
+        sentAt: new Date(),
+      },
+    });
+  } catch (err) {
+    console.error('[sendMediaMessage] uazapi error:', err);
+    await db.message.update({
+      where: { id: message.id },
+      data: {
+        status: 'FAILED',
+        failedAt: new Date(),
+      },
+    });
+    throw err;
+  }
 }

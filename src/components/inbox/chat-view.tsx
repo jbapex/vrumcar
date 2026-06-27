@@ -8,6 +8,10 @@ import {
 import { ContactAvatar } from '@/components/inbox/contact-avatar';
 import { ContactPanel } from '@/components/inbox/contact-panel';
 import { ReassignButton } from '@/components/inbox/reassign-button';
+import {
+  MediaAttachButton,
+  MediaSendProvider,
+} from '@/components/inbox/media-send-button';
 import { AudioMessage } from '@/components/inbox/media/audio-message';
 import { DocumentMessage } from '@/components/inbox/media/document-message';
 import { ImageMessage } from '@/components/inbox/media/image-message';
@@ -380,32 +384,38 @@ export function ChatView({
           </div>
         </div>
 
-        <div className="border-t border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950">
-          {error ? (
-            <p className="mb-2 rounded-md bg-red-50 p-2 text-xs text-red-700 dark:bg-red-950/40 dark:text-red-200">
-              {error}
-            </p>
-          ) : null}
-          <div className="flex items-end gap-2">
-            <Textarea
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Digite uma mensagem..."
-              rows={1}
-              className="min-h-[40px] resize-none"
-              disabled={isPending}
-            />
-            <Button
-              type="button"
-              onClick={handleSend}
-              disabled={isPending || !text.trim()}
-              size="icon"
-            >
-              <Send className="h-4 w-4" aria-hidden />
-            </Button>
+        <MediaSendProvider
+          orgSlug={orgSlug}
+          conversationId={conversation.id}
+        >
+          <div className="border-t border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
+            {error ? (
+              <p className="mb-0 rounded-none bg-red-50 p-2 text-xs text-red-700 dark:bg-red-950/40 dark:text-red-200">
+                {error}
+              </p>
+            ) : null}
+            <div className="flex items-end gap-2 p-3">
+              <MediaAttachButton />
+              <Textarea
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Digite uma mensagem..."
+                rows={1}
+                className="min-h-[40px] resize-none"
+                disabled={isPending}
+              />
+              <Button
+                type="button"
+                onClick={handleSend}
+                disabled={isPending || !text.trim()}
+                size="icon"
+              >
+                <Send className="h-4 w-4" aria-hidden />
+              </Button>
+            </div>
           </div>
-        </div>
+        </MediaSendProvider>
       </div>
 
       <ContactPanel
