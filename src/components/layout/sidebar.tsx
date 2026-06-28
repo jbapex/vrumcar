@@ -42,6 +42,7 @@ type NavDef = {
   icon: keyof typeof navIcons;
   label: string;
   iconClassName?: string;
+  roles?: OrgRole[];
 };
 
 function buildItems(orgSlug: string): NavDef[] {
@@ -62,8 +63,19 @@ function buildItems(orgSlug: string): NavDef[] {
     },
     { href: `${p}/calendar`, icon: 'Calendar', label: 'Agenda' },
     { href: `${p}/reports`, icon: 'BarChart3', label: 'Relatórios' },
-    { href: `${p}/settings`, icon: 'Settings', label: 'Configurações' },
+    {
+      href: `${p}/settings`,
+      icon: 'Settings',
+      label: 'Configurações',
+      roles: ['OWNER', 'ADMIN'],
+    },
   ];
+}
+
+function filterItemsByRole(items: NavDef[], userRole: OrgRole): NavDef[] {
+  return items.filter(
+    (item) => !item.roles || item.roles.includes(userRole),
+  );
 }
 
 type SidebarProps = {
@@ -116,17 +128,16 @@ function NavLink({
 export function Sidebar({
   orgSlug,
   orgName: _orgName,
-  userRole: _userRole,
+  userRole,
   mode = 'desktop',
   onNavigate,
 }: SidebarProps) {
   void _orgName;
-  void _userRole;
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(true);
   const isMobile = mode === 'mobile';
   const effectiveCollapsed = isMobile ? false : collapsed;
-  const items = buildItems(orgSlug);
+  const items = filterItemsByRole(buildItems(orgSlug), userRole);
   const mainItems = items.filter((item) => item.icon !== 'Settings');
   const footerItems = items.filter((item) => item.icon === 'Settings');
 
