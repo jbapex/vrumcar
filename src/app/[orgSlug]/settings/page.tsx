@@ -1,6 +1,5 @@
-import { redirect } from 'next/navigation';
+import { notFound } from 'next/navigation';
 import { OrgSettingsForm } from '@/components/settings/org-settings-form';
-import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
 interface Props {
@@ -10,35 +9,17 @@ interface Props {
 export default async function SettingsPage({ params }: Props) {
   const { orgSlug } = await params;
 
-  const session = await auth();
-  if (!session?.user?.id) redirect('/login');
-
   const org = await prisma.organization.findUnique({
     where: { slug: orgSlug },
-    include: {
-      memberships: {
-        where: { userId: session.user.id, isActive: true },
-        take: 1,
-      },
-    },
   });
-
-  if (!org || org.memberships.length === 0) redirect('/login');
-
-  const membership = org.memberships[0];
-  if (!membership) redirect('/login');
-
-  const role = membership.role;
-  if (!['OWNER', 'ADMIN'].includes(role)) {
-    redirect(`/${orgSlug}/inbox`);
-  }
+  if (!org) notFound();
 
   return (
-    <div className="mx-auto max-w-2xl space-y-8 p-6">
+    <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Configurações</h1>
+        <h2 className="text-lg font-semibold">Dados da organização</h2>
         <p className="mt-1 text-sm text-zinc-500">
-          Gerencie os dados da sua organização.
+          Gerencie nome, slug e logo.
         </p>
       </div>
 

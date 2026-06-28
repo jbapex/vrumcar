@@ -121,3 +121,33 @@ export async function uploadOrgLogoAction(
 
   revalidatePath(`/${orgSlug}/settings`);
 }
+
+export async function listMembersAction(orgSlug: string) {
+  const { org } = await requireAdminAccess(orgSlug);
+
+  const memberships = await prisma.membership.findMany({
+    where: { organizationId: org.id },
+    include: {
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          createdAt: true,
+        },
+      },
+    },
+    orderBy: [{ role: 'asc' }, { user: { name: 'asc' } }],
+  });
+
+  return memberships.map((m) => ({
+    membershipId: m.id,
+    userId: m.user.id,
+    name: m.user.name,
+    email: m.user.email,
+    role: m.role,
+    isActive: m.isActive,
+    joinedAt: m.createdAt,
+    userCreatedAt: m.user.createdAt,
+  }));
+}
