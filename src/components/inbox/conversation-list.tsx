@@ -1,10 +1,9 @@
 import { ContactAvatar } from '@/components/inbox/contact-avatar';
-import { Badge } from '@/components/ui/badge';
 import { formatRelativeTime } from '@/lib/format/relative-time';
 import { formatPhone } from '@/lib/format/phone';
 import { cn } from '@/lib/utils';
 import type { ConversationStatus, LeadStatus, MessageType } from '@prisma/client';
-import { Users } from 'lucide-react';
+import { UserRound } from 'lucide-react';
 import Link from 'next/link';
 
 export type ConversationListItem = {
@@ -59,7 +58,7 @@ export function ConversationList({
   onlyMine,
 }: Props) {
   return (
-    <div className="flex flex-col divide-y border-r border-zinc-200 bg-white dark:divide-zinc-800 dark:border-zinc-800 dark:bg-zinc-950">
+    <div className="flex flex-col bg-white dark:bg-zinc-950">
       {items.map((c) => {
         const params = new URLSearchParams();
         if (tab) params.set('tab', tab);
@@ -68,6 +67,7 @@ export function ConversationList({
         const tabQuery = qs ? `?${qs}` : '';
         const href = `/${orgSlug}/inbox/${c.id}${tabQuery}`;
         const active = c.id === activeConversationId;
+        const hasUnread = c.unreadCount > 0;
         const title =
           c.contactName?.trim() || formatPhone(c.phoneNumber) || c.phoneNumber;
         const preview = getMessagePreview(c);
@@ -78,43 +78,76 @@ export function ConversationList({
             key={c.id}
             href={href}
             className={cn(
-              'hover:bg-muted/80 flex gap-3 px-3 py-3 transition-colors',
-              active && 'bg-primary/10',
+              'group relative flex gap-3 border-b border-zinc-100 px-4 py-3.5 transition-colors dark:border-zinc-800/80',
+              active
+                ? 'bg-purple-50/90 hover:bg-purple-50/90 dark:bg-purple-950/25'
+                : 'hover:bg-zinc-50 dark:hover:bg-zinc-900/50',
+              hasUnread && !active && 'bg-white',
             )}
           >
+            {active ? (
+              <span className="absolute inset-y-0 left-0 w-[3px] bg-purple-600" />
+            ) : null}
+
             <ContactAvatar
               name={c.contactName}
               avatarUrl={c.contactAvatar}
               size="md"
             />
+
             <div className="min-w-0 flex-1">
-              <div className="flex items-center justify-between gap-2">
-                <span className="truncate font-medium">{title}</span>
-                <span className="text-muted-foreground shrink-0 text-xs">
+              <div className="flex items-baseline justify-between gap-2">
+                <span
+                  className={cn(
+                    'truncate text-[15px] text-zinc-900 dark:text-zinc-100',
+                    hasUnread ? 'font-semibold' : 'font-medium',
+                  )}
+                >
+                  {title}
+                </span>
+                <span
+                  className={cn(
+                    'shrink-0 text-[11px]',
+                    hasUnread
+                      ? 'font-medium text-purple-600 dark:text-purple-400'
+                      : 'text-zinc-400',
+                  )}
+                >
                   {time}
                 </span>
               </div>
-              <div className="mt-0.5 flex items-center gap-2">
-                <p className="text-muted-foreground truncate text-sm">
+
+              <div className="mt-1 flex items-center gap-1.5">
+                <p
+                  className={cn(
+                    'min-w-0 flex-1 truncate text-sm',
+                    hasUnread
+                      ? 'font-medium text-zinc-700 dark:text-zinc-300'
+                      : 'text-zinc-500 dark:text-zinc-400',
+                  )}
+                >
                   {preview}
                 </p>
-                {c.assignedTo ? (
-                  <span className="shrink-0 text-[10px] text-zinc-500">
-                    👤 {c.assignedTo.name ?? 'atendendo'}
-                  </span>
-                ) : null}
+
                 {c.leadId ? (
-                  <Users
-                    className="text-muted-foreground h-3.5 w-3.5 shrink-0"
+                  <UserRound
+                    className="h-3.5 w-3.5 shrink-0 text-purple-400"
                     aria-label="Tem lead vinculado"
                   />
                 ) : null}
-                {c.unreadCount > 0 ? (
-                  <Badge variant="default" className="ml-auto shrink-0 px-1.5">
+
+                {hasUnread ? (
+                  <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-purple-600 px-1 text-[10px] font-semibold text-white">
                     {c.unreadCount > 99 ? '99+' : c.unreadCount}
-                  </Badge>
+                  </span>
                 ) : null}
               </div>
+
+              {c.assignedTo ? (
+                <p className="mt-1 truncate text-[11px] text-zinc-400">
+                  {c.assignedTo.name ?? c.assignedTo.email}
+                </p>
+              ) : null}
             </div>
           </Link>
         );

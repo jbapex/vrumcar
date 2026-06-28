@@ -29,6 +29,7 @@ import {
   Clock,
   Send,
   UserPlus,
+  WifiOff,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -131,7 +132,7 @@ function MessageStatusIcon({ status }: { status: Message['status'] }) {
       />
     );
   if (status === 'READ')
-    return <CheckCheck className="h-3 w-3 text-blue-300" aria-hidden />;
+    return <CheckCheck className="h-3 w-3 text-blue-600" aria-hidden />;
   if (status === 'FAILED')
     return <AlertCircle className="h-3 w-3 text-red-500" aria-hidden />;
   return null;
@@ -231,10 +232,12 @@ export function ChatView({
     formatPhone(conversation.phoneNumber) ||
     conversation.phoneNumber;
 
+  const channelOffline = conversation.channelInstance.status !== 'CONNECTED';
+
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col bg-white dark:bg-zinc-950 md:flex-row">
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <div className="border-b border-zinc-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-950">
+        <div className="shrink-0 border-b border-zinc-200/80 bg-white px-4 py-3 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
           <div className="flex items-center justify-between gap-2">
             <button
               type="button"
@@ -310,7 +313,7 @@ export function ChatView({
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto bg-zinc-50 p-4 dark:bg-zinc-900/40">
+        <div className="min-h-0 flex-1 overflow-y-auto bg-[#efeae2] p-4 dark:bg-zinc-900/60">
           <div className="space-y-3">
             {messagesAsc.length === 0 ? (
               <p className="text-muted-foreground py-8 text-center text-sm">
@@ -326,7 +329,7 @@ export function ChatView({
                 <div key={msg.id}>
                   {showDateSep ? (
                     <div className="my-4 flex items-center justify-center">
-                      <span className="rounded-full bg-zinc-200 px-3 py-1 text-xs text-zinc-600 capitalize dark:bg-zinc-700 dark:text-zinc-300">
+                      <span className="rounded-full bg-white/90 px-4 py-1 text-xs font-medium text-zinc-600 capitalize shadow-sm ring-1 ring-black/5 dark:bg-zinc-800/90 dark:text-zinc-300 dark:ring-white/10">
                         {formatDateSeparator(msg.createdAt)}
                       </span>
                     </div>
@@ -336,10 +339,10 @@ export function ChatView({
                   >
                   <div className="relative inline-block max-w-[70%]">
                     <div
-                      className={`rounded-lg px-3 py-2 ${
+                      className={`rounded-lg px-3 py-2 shadow-sm ${
                         isOutbound
-                          ? 'bg-green-600 text-white dark:bg-green-700'
-                          : 'border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900'
+                          ? 'bg-[#d9fdd3] text-zinc-900'
+                          : 'bg-white text-zinc-900 dark:bg-zinc-900 dark:text-zinc-100'
                       }`}
                     >
                       {msg.type === 'IMAGE' ? (
@@ -399,7 +402,11 @@ export function ChatView({
                         </p>
                       )}
                       <div
-                        className={`mt-1 flex items-center justify-end gap-1 text-[10px] ${isOutbound ? 'text-white/70' : 'text-zinc-500'}`}
+                        className={`mt-1 flex items-center justify-end gap-1 text-[10px] ${
+                          isOutbound
+                            ? 'text-emerald-800/60'
+                            : 'text-zinc-500'
+                        }`}
                       >
                         <span>{formatRelativeTime(msg.createdAt)}</span>
                         {isOutbound ? (
@@ -407,7 +414,7 @@ export function ChatView({
                         ) : null}
                       </div>
                       {msg.errorMessage ? (
-                        <p className="mt-1 text-xs text-red-100">
+                        <p className="mt-1 text-xs text-red-600">
                           {msg.errorMessage}
                         </p>
                       ) : null}
@@ -430,58 +437,61 @@ export function ChatView({
           </div>
         </div>
 
-        {conversation.channelInstance.status !== 'CONNECTED' ? (
-          <div className="mx-4 mb-2 flex items-center gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 dark:border-red-900 dark:bg-red-950/40">
-            <span className="text-lg">⚠️</span>
-            <div className="flex-1">
-              <p className="text-sm font-medium text-red-800 dark:text-red-200">
-                O canal {conversation.channelInstance.name} está desconectado.
+        <div className="mt-auto shrink-0 bg-[#f0f2f5] dark:bg-zinc-900">
+          {channelOffline ? (
+            <div className="flex items-center gap-2 border-b border-amber-200/70 bg-amber-50/90 px-4 py-2 dark:border-amber-900/40 dark:bg-amber-950/30">
+              <WifiOff className="h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
+              <p className="min-w-0 flex-1 truncate text-xs text-amber-900 dark:text-amber-200">
+                Canal <span className="font-medium">{conversation.channelInstance.name}</span> offline — envio pausado
               </p>
-              <p className="text-xs text-red-600 dark:text-red-400">
-                Mensagens não serão enviadas até reconectar.
-              </p>
+              <Link
+                href={`/${orgSlug}/channels`}
+                className="shrink-0 text-xs font-medium text-amber-800 underline-offset-2 hover:underline dark:text-amber-300"
+              >
+                Reconectar
+              </Link>
             </div>
-            <Link
-              href={`/${orgSlug}/channels`}
-              className="shrink-0 rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700"
-            >
-              Reconectar
-            </Link>
-          </div>
-        ) : null}
+          ) : null}
 
-        <MediaSendProvider
-          orgSlug={orgSlug}
-          conversationId={conversation.id}
-        >
-          <div className="border-t border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
+          <MediaSendProvider
+            orgSlug={orgSlug}
+            conversationId={conversation.id}
+          >
             {error ? (
-              <p className="mb-0 rounded-none bg-red-50 p-2 text-xs text-red-700 dark:bg-red-950/40 dark:text-red-200">
+              <p className="border-b border-red-200/60 bg-red-50 px-4 py-2 text-xs text-red-700 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-200">
                 {error}
               </p>
             ) : null}
-            <div className="flex items-end gap-2 p-3">
-              <MediaAttachButton />
-              <Textarea
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Digite uma mensagem..."
-                rows={1}
-                className="min-h-[40px] resize-none"
-                disabled={isPending}
-              />
+
+            <div className="flex items-end gap-2 px-3 py-3">
+              <MediaAttachButton disabled={channelOffline} />
+              <div className="flex min-w-0 flex-1 items-end rounded-3xl bg-white px-3 py-2 shadow-sm ring-1 ring-black/[0.06] dark:bg-zinc-950 dark:ring-white/10">
+                <Textarea
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder={
+                    channelOffline
+                      ? 'Reconecte o canal para enviar...'
+                      : 'Digite uma mensagem...'
+                  }
+                  rows={1}
+                  disabled={isPending || channelOffline}
+                  className="max-h-32 min-h-[24px] flex-1 resize-none border-0 bg-transparent p-0 text-sm shadow-none focus-visible:ring-0 disabled:opacity-60"
+                />
+              </div>
               <Button
                 type="button"
                 onClick={handleSend}
-                disabled={isPending || !text.trim()}
+                disabled={isPending || !text.trim() || channelOffline}
                 size="icon"
+                className="h-10 w-10 shrink-0 rounded-full shadow-sm disabled:opacity-40"
               >
                 <Send className="h-4 w-4" aria-hidden />
               </Button>
             </div>
-          </div>
-        </MediaSendProvider>
+          </MediaSendProvider>
+        </div>
       </div>
 
       <ContactPanel

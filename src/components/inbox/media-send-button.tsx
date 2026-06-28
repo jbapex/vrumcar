@@ -136,7 +136,7 @@ export function MediaSendProvider({
       />
 
       {selectedFile ? (
-        <div className="border-t border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900/60">
+        <div className="border-b border-zinc-200/80 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-950">
           <div className="flex items-start gap-3">
             {preview ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -206,7 +206,7 @@ export function MediaSendProvider({
   );
 }
 
-export function MediaAttachButton() {
+export function MediaAttachButton({ disabled }: { disabled?: boolean }) {
   const ctx = useContext(MediaSendContext);
   if (!ctx) {
     throw new Error('MediaAttachButton must be used within MediaSendProvider');
@@ -216,8 +216,8 @@ export function MediaAttachButton() {
     <button
       type="button"
       onClick={ctx.openFilePicker}
-      disabled={ctx.sending}
-      className="shrink-0 rounded-full p-2 text-zinc-500 hover:bg-zinc-100 disabled:opacity-50 dark:hover:bg-zinc-800"
+      disabled={ctx.sending || disabled}
+      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-zinc-500 transition-colors hover:bg-white/80 hover:text-zinc-700 disabled:opacity-40 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
       title="Enviar arquivo"
     >
       <Paperclip className="h-5 w-5" />
