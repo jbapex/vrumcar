@@ -269,7 +269,11 @@ export async function getSaleById(organizationId: string, saleId: string) {
   return db.sale.findFirst({
     where: { id: saleId },
     include: {
-      vehicle: true,
+      vehicle: {
+        include: {
+          costs: true,
+        },
+      },
       customer: true,
       lead: true,
       salesPerson: { select: { id: true, name: true, email: true } },

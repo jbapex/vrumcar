@@ -4,6 +4,7 @@ import { formatDate, formatKm, formatPriceBRL } from '@/lib/format';
 import { formatPhone } from '@/lib/format/phone';
 import { PAYMENT_METHOD_LABELS } from '@/lib/labels/sales';
 import { getSaleById } from '@/modules/sales/service';
+import { MarginCard } from '@/components/sales/margin-card';
 import { CancelSaleDialog } from '@/components/sales/cancel-sale-dialog';
 import { SaleStatusBadge } from '@/components/sales/sale-status-badge';
 import {
@@ -71,6 +72,17 @@ export default async function SaleDetailPage({
           </Link>
         </div>
       </div>
+
+      {sale.vehicle ? (
+        <MarginCard
+          purchasePriceCents={sale.vehicle.acquisitionCostCents ?? 0}
+          totalCostsCents={
+            sale.vehicle.costs?.reduce((sum, c) => sum + c.amountCents, 0) ??
+            0
+          }
+          salePriceCents={sale.finalPriceCents}
+        />
+      ) : null}
 
       <div className="grid gap-4 md:grid-cols-2">
         <Card>

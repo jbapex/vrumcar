@@ -37,6 +37,8 @@ export async function getDashboardMetrics(organizationId: string) {
     resolvedToday,
     messagesToday,
     conversationsByUser,
+
+    monthlyInvested,
   ] = await Promise.all([
     prisma.vehicle.count({
       where: {
@@ -220,6 +222,23 @@ export async function getDashboardMetrics(organizationId: string) {
       },
       _count: true,
     }),
+
+    prisma.$queryRaw<Array<{ total_invested: bigint }>>`
+      SELECT COALESCE(
+        SUM(v.acquisition_cost_cents + COALESCE(vc.total_costs, 0)),
+        0
+      )::bigint as total_invested
+      FROM sales s
+      LEFT JOIN vehicles v ON v.id = s.vehicle_id
+      LEFT JOIN (
+        SELECT vehicle_id, SUM(amount_cents) as total_costs
+        FROM vehicle_costs
+        GROUP BY vehicle_id
+      ) vc ON vc.vehicle_id = v.id
+      WHERE s.organization_id = ${organizationId}
+        AND s.status = 'COMPLETED'::"SaleStatus"
+        AND s.created_at >= ${startOfMonth}
+    `,
   ]);
 
   const avgDaysInStock =
@@ -260,6 +279,14 @@ export async function getDashboardMetrics(organizationId: string) {
 
   const userMap = new Map(users.map((u) => [u.id, u.name ?? u.email]));
 
+  const totalInvestedCents = Number(monthlyInvested[0]?.total_invested ?? 0);
+  const monthlyRevenueCents = salesValueThisMonth._sum.finalPriceCents ?? 0;
+  const monthlyProfitCents = monthlyRevenueCents - totalInvestedCents;
+  const monthlyMarginPercent =
+    monthlyRevenueCents > 0
+      ? Math.round((monthlyProfitCents / monthlyRevenueCents) * 100 * 10) / 10
+      : 0;
+
   return {
     stock: {
       total: vehiclesInStock,
@@ -290,6 +317,12 @@ export async function getDashboardMetrics(organizationId: string) {
         count: s._count,
         valueCents: s._sum.finalPriceCents ?? 0,
       })),
+    },
+    financial: {
+      monthlyProfitCents,
+      monthlyMarginPercent,
+      monthlyRevenueCents,
+      monthlyInvestedCents: totalInvestedCents,
     },
     whatsapp: {
       inbox: inboxConversations,

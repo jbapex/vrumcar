@@ -82,7 +82,7 @@ export async function findOrCreateConversation(
 
   if (existingOnOtherChannel) {
     const data: Prisma.ConversationUpdateInput = {
-      channelInstanceId,
+      channelInstance: { connect: { id: channelInstanceId } },
     };
     if (
       params.contactName != null &&
@@ -201,7 +201,7 @@ export async function ensureConversationChannelActive(
 
   return db.conversation.update({
     where: { id: conversationId },
-    data: { channelInstanceId: replacement.id },
+    data: { channelInstance: { connect: { id: replacement.id } } },
   });
 }
 

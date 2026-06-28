@@ -6,6 +6,13 @@ import { LeadsChart } from '@/components/dashboard/leads-chart';
 import { RecentActivities } from '@/components/dashboard/recent-activities';
 import { SalesChart } from '@/components/dashboard/sales-chart';
 import { cn } from '@/lib/utils';
+import type { LucideIcon } from 'lucide-react';
+import {
+  DollarSign,
+  Percent,
+  TrendingDown,
+  TrendingUp,
+} from 'lucide-react';
 
 interface Props {
   orgSlug: string;
@@ -101,6 +108,70 @@ function MetricBand({
       <div className="grid min-w-0 grid-cols-2 gap-x-3 gap-y-4 sm:grid-cols-3 lg:grid-cols-5 lg:gap-x-4 lg:gap-y-4">
         {children}
       </div>
+    </div>
+  );
+}
+
+const kpiColorStyles = {
+  green: {
+    card: 'border-green-200/80 bg-green-50/80',
+    icon: 'text-green-600',
+    value: 'text-green-800',
+  },
+  red: {
+    card: 'border-red-200/80 bg-red-50/80',
+    icon: 'text-red-600',
+    value: 'text-red-800',
+  },
+  amber: {
+    card: 'border-amber-200/80 bg-amber-50/80',
+    icon: 'text-amber-600',
+    value: 'text-amber-900',
+  },
+  blue: {
+    card: 'border-blue-200/80 bg-blue-50/80',
+    icon: 'text-blue-600',
+    value: 'text-blue-900',
+  },
+  zinc: {
+    card: 'border-border/60 bg-muted/30',
+    icon: 'text-muted-foreground',
+    value: 'text-foreground',
+  },
+} as const;
+
+function KpiCard({
+  icon: Icon,
+  label,
+  value,
+  color,
+  highlight,
+}: {
+  icon: LucideIcon;
+  label: string;
+  value: string;
+  color: keyof typeof kpiColorStyles;
+  highlight?: boolean;
+}) {
+  const styles = kpiColorStyles[color];
+
+  return (
+    <div
+      className={cn(
+        'rounded-xl border p-4',
+        styles.card,
+        highlight && 'ring-2 ring-primary/20',
+      )}
+    >
+      <div className="flex items-center gap-2">
+        <Icon className={cn('h-4 w-4', styles.icon)} aria-hidden />
+        <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+          {label}
+        </p>
+      </div>
+      <p className={cn('mt-2 text-xl font-bold tabular-nums', styles.value)}>
+        {value}
+      </p>
     </div>
   );
 }
@@ -371,6 +442,46 @@ export function DashboardContent({
             }
           />
         </MetricBand>
+
+        <section className="border-b border-border/50 px-5 py-5 sm:px-6">
+          <div className="mb-4 flex items-center gap-3">
+            <h2 className="text-sm font-semibold uppercase text-zinc-400">
+              Financeiro do mês
+            </h2>
+            <div className="h-px flex-1 bg-zinc-200" />
+          </div>
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            <KpiCard
+              icon={DollarSign}
+              label="Lucro bruto"
+              value={formatBRL(metrics.financial.monthlyProfitCents)}
+              color={
+                metrics.financial.monthlyProfitCents >= 0 ? 'green' : 'red'
+              }
+              highlight
+            />
+            <KpiCard
+              icon={Percent}
+              label="Margem média"
+              value={`${metrics.financial.monthlyMarginPercent}%`}
+              color={
+                metrics.financial.monthlyMarginPercent > 20 ? 'green' : 'amber'
+              }
+            />
+            <KpiCard
+              icon={TrendingUp}
+              label="Receita"
+              value={formatBRL(metrics.financial.monthlyRevenueCents)}
+              color="blue"
+            />
+            <KpiCard
+              icon={TrendingDown}
+              label="Investido"
+              value={formatBRL(metrics.financial.monthlyInvestedCents)}
+              color="zinc"
+            />
+          </div>
+        </section>
 
         <MetricBand title="WhatsApp" subtitle="Indicadores complementares">
           <Metric label="Entrada" value={metrics.whatsapp.inbox} emphasis />
