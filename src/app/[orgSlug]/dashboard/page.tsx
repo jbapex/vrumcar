@@ -1,43 +1,38 @@
+import { DashboardContent } from '@/components/dashboard/dashboard-content';
 import { auth } from '@/lib/auth';
-import { PageHeader } from '@/components/layout/page-header';
-import { Skeleton } from '@/components/ui/skeleton';
+import { prisma } from '@/lib/db';
+import { getDashboardMetrics } from '@/modules/dashboard/metrics-service';
+import { redirect } from 'next/navigation';
 
-export default async function DashboardPage() {
+interface Props {
+  params: Promise<{ orgSlug: string }>;
+}
+
+export default async function DashboardPage({ params }: Props) {
+  const { orgSlug } = await params;
+
   const session = await auth();
+  if (!session?.user?.id) redirect('/login');
+
+  const org = await prisma.organization.findUnique({
+    where: { slug: orgSlug },
+    include: {
+      memberships: {
+        where: { userId: session.user.id, isActive: true },
+        take: 1,
+      },
+    },
+  });
+
+  if (!org || org.memberships.length === 0) redirect('/login');
+
+  const metrics = await getDashboardMetrics(org.id);
 
   return (
-    <div className="space-y-4">
-      <PageHeader
-        breadcrumbs={
-          <>
-            <span className="font-medium text-foreground">VrumCar</span>
-            <span className="mx-1.5">/</span>
-            <span>Dashboard</span>
-          </>
-        }
-        title="Dashboard"
-        description={
-          <>
-            Bem-vindo(a) de volta,{' '}
-            <span className="font-medium text-foreground">
-              {session?.user?.name ?? session?.user?.email ?? 'visitante'}
-            </span>
-            . Em breve métricas e atalhos aparecem aqui.
-          </>
-        }
-      />
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div
-            key={i}
-            className="flex flex-col gap-2 rounded-xl border border-border/60 bg-card p-4 text-card-foreground shadow-sm"
-          >
-            <Skeleton className="h-4 w-24 rounded-full" />
-            <Skeleton className="h-9 w-full rounded-lg" />
-            <Skeleton className="h-3 w-16 rounded-full" />
-          </div>
-        ))}
-      </div>
-    </div>
+    <DashboardContent
+      orgSlug={orgSlug}
+      orgName={org.name}
+      metrics={metrics}
+    />
   );
 }
