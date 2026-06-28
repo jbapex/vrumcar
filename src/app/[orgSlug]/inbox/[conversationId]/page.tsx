@@ -11,11 +11,8 @@ import {
 import { syncChannelInstanceStatus } from '@/modules/channels/instance-service';
 import type { ConversationListItem } from '@/components/inbox/conversation-list';
 import { ChatView } from '@/components/inbox/chat-view';
-import { ConversationList } from '@/components/inbox/conversation-list';
-import { ConversationTabs } from '@/components/inbox/conversation-tabs';
-import { InboxListEmpty } from '@/components/inbox/inbox-list-empty';
-import { InboxSidebarHeader } from '@/components/inbox/inbox-sidebar-header';
 import { InboxPoller } from '@/components/inbox/inbox-poller';
+import { InboxSidebar } from '@/components/inbox/inbox-sidebar';
 import { NotificationSound } from '@/components/inbox/notification-sound';
 import { MarkConversationRead } from '@/components/inbox/mark-conversation-read';
 import { notFound, redirect } from 'next/navigation';
@@ -43,6 +40,46 @@ function parseOnlyMine(
   const v = Array.isArray(raw) ? raw[0] : raw;
   return v === 'true';
 }
+
+function toListItem(
+  c: Awaited<ReturnType<typeof listConversations>>['items'][number],
+): ConversationListItem {
+  return {
+    id: c.id,
+    contactName: c.contactName,
+    contactAvatar: c.contactAvatar,
+    phoneNumber: c.phoneNumber,
+    lastMessagePreview: c.lastMessagePreview,
+    lastMessageAt: c.lastMessageAt,
+    unreadCount: c.unreadCount,
+    status: c.status,
+    leadId: c.leadId,
+    lead: c.lead,
+    assignedTo: c.assignedTo,
+    channelName: c.channelInstance?.name,
+    messages: c.messages,
+  };
+}
+
+const leadSelect = {
+  id: true,
+  name: true,
+  phone: true,
+  email: true,
+  cpf: true,
+  status: true,
+  notes: true,
+  createdAt: true,
+  interestVehicle: {
+    select: {
+      id: true,
+      brand: true,
+      model: true,
+      year: true,
+      salePriceCents: true,
+    },
+  },
+} as const;
 
 export default async function InboxConversationPage({
   params,
@@ -86,18 +123,7 @@ export default async function InboxConversationPage({
   const conversation = await db.conversation.findFirst({
     where: { id: conversationId, deletedAt: null },
     include: {
-      lead: {
-        select: {
-          id: true,
-          name: true,
-          phone: true,
-          email: true,
-          cpf: true,
-          status: true,
-          notes: true,
-          createdAt: true,
-        },
-      },
+      lead: { select: leadSelect },
       channelInstance: { select: { id: true, name: true, status: true } },
       assignedTo: { select: { id: true, name: true, email: true } },
     },
@@ -112,18 +138,7 @@ export default async function InboxConversationPage({
   const refreshed = await db.conversation.findFirst({
     where: { id: conversationId, deletedAt: null },
     include: {
-      lead: {
-        select: {
-          id: true,
-          name: true,
-          phone: true,
-          email: true,
-          cpf: true,
-          status: true,
-          notes: true,
-          createdAt: true,
-        },
-      },
+      lead: { select: leadSelect },
       channelInstance: { select: { id: true, name: true, status: true } },
       assignedTo: { select: { id: true, name: true, email: true } },
     },
@@ -157,6 +172,7 @@ export default async function InboxConversationPage({
     resolvedCount,
     teamMembers,
     inboundCount,
+    connectedChannels,
   ] = await Promise.all([
     listConversations(org.id, {
       tab,
@@ -194,38 +210,16 @@ export default async function InboxConversationPage({
         direction: 'INBOUND',
       },
     }),
+    prisma.channelInstance.count({
+      where: {
+        organizationId: org.id,
+        deletedAt: null,
+        status: 'CONNECTED',
+      },
+    }),
   ]);
 
-  const listItems: ConversationListItem[] = conversationsResult.items.map(
-    (c) => ({
-      id: c.id,
-      contactName: c.contactName,
-      contactAvatar: c.contactAvatar,
-      phoneNumber: c.phoneNumber,
-      lastMessagePreview: c.lastMessagePreview,
-      lastMessageAt: c.lastMessageAt,
-      unreadCount: c.unreadCount,
-      status: c.status,
-      leadId: c.leadId,
-      lead: c.lead,
-      assignedTo: c.assignedTo,
-      messages: c.messages,
-    }),
-  );
-
-  const connectedChannels = await prisma.channelInstance.count({
-    where: {
-      organizationId: org.id,
-      deletedAt: null,
-      status: 'CONNECTED',
-    },
-  });
-
-  const emptyMessages: Record<InboxTab, string> = {
-    inbox: 'Nenhuma conversa na entrada.',
-    attending: 'Nenhuma conversa em atendimento.',
-    resolved: 'Nenhuma conversa resolvida.',
-  };
+  const listItems = conversationsResult.items.map(toListItem);
 
   return (
     <>
@@ -234,39 +228,23 @@ export default async function InboxConversationPage({
         conversationId={conversationId}
       />
       <div className="flex h-full min-h-0 flex-col overflow-hidden md:flex-row">
-        <aside className="flex h-full min-h-0 w-full shrink-0 flex-col overflow-hidden bg-white shadow-sm max-md:max-h-[45vh] md:w-[min(100%,400px)] md:max-h-full md:border-r md:border-zinc-200/80 dark:bg-zinc-950 dark:md:border-zinc-800">
-          <InboxSidebarHeader connectedChannels={connectedChannels} />
-          <ConversationTabs
-            orgSlug={orgSlug}
-            currentTab={tab}
-            userRole={userRole}
-            onlyMine={onlyMine}
-            activeConversationId={conversationId}
-            counts={{
-              inbox: inboxCount.total,
-              attending: attendingCount.total,
-              resolved: resolvedCount.total,
-            }}
-          />
-          <div className="min-h-0 flex-1 overflow-y-auto">
-            {listItems.length === 0 ? (
-              <InboxListEmpty
-                orgSlug={orgSlug}
-                message={emptyMessages[tab]}
-                noChannels={connectedChannels === 0}
-              />
-            ) : (
-              <ConversationList
-                orgSlug={orgSlug}
-                items={listItems}
-                activeConversationId={conversationId}
-                tab={tab}
-                onlyMine={onlyMine}
-              />
-            )}
-          </div>
-        </aside>
-        <main className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-white dark:bg-zinc-950">
+        <InboxSidebar
+          orgSlug={orgSlug}
+          tab={tab}
+          search={search}
+          onlyMine={onlyMine}
+          userRole={userRole}
+          connectedChannels={connectedChannels}
+          items={listItems}
+          activeConversationId={conversationId}
+          className="max-md:max-h-[42vh] md:max-h-full"
+          counts={{
+            inbox: inboxCount.total,
+            attending: attendingCount.total,
+            resolved: resolvedCount.total,
+          }}
+        />
+        <main className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
           <ChatView
             orgSlug={orgSlug}
             conversation={{
@@ -285,6 +263,7 @@ export default async function InboxConversationPage({
             }}
             messages={messages}
             teamMembers={teamMembers}
+            currentUserId={userId}
           />
         </main>
       </div>

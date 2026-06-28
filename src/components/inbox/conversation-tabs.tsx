@@ -12,6 +12,7 @@ interface Props {
   userRole: string;
   onlyMine: boolean;
   activeConversationId?: string;
+  search?: string;
 }
 
 export function ConversationTabs({
@@ -21,6 +22,7 @@ export function ConversationTabs({
   userRole,
   onlyMine,
   activeConversationId,
+  search,
 }: Props) {
   const tabs: Array<{
     key: typeof currentTab;
@@ -47,6 +49,7 @@ export function ConversationTabs({
     const params = new URLSearchParams();
     params.set('tab', tabKey);
     if (mine) params.set('mine', 'true');
+    if (search?.trim()) params.set('search', search.trim());
     const qs = params.toString();
     if (activeConversationId) {
       return `/${orgSlug}/inbox/${activeConversationId}?${qs}`;

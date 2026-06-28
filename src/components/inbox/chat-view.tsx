@@ -2,12 +2,11 @@
 
 import {
   attendConversationAction,
-  resolveConversationAction,
   sendMessageAction,
 } from '@/app/[orgSlug]/inbox/actions';
-import { ContactAvatar } from '@/components/inbox/contact-avatar';
+import { ChatHeader } from '@/components/inbox/chat-header';
 import { ContactPanel } from '@/components/inbox/contact-panel';
-import { ReassignButton } from '@/components/inbox/reassign-button';
+import { InboxQuickReplies } from '@/components/inbox/inbox-quick-replies';
 import {
   MediaAttachButton,
   MediaSendProvider,
@@ -18,14 +17,12 @@ import { ImageMessage } from '@/components/inbox/media/image-message';
 import { MessageContextMenu } from '@/components/inbox/message-context-menu';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { formatPhone } from '@/lib/format/phone';
 import { formatRelativeTime } from '@/lib/format/relative-time';
 import type { Message } from '@prisma/client';
 import {
   AlertCircle,
   Check,
   CheckCheck,
-  CheckCircle2,
   Clock,
   Send,
   UserPlus,
@@ -34,6 +31,55 @@ import {
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState, useTransition } from 'react';
+
+type OptimisticMessage = {
+  clientId: string;
+  text: string;
+  status: 'PENDING' | 'FAILED';
+  errorMessage?: string;
+  createdAt: Date;
+};
+
+type DisplayMessage = Message | (OptimisticMessage & {
+  id: string;
+  direction: 'OUTBOUND';
+  type: 'TEXT';
+  isOptimistic: true;
+});
+
+function isOptimisticMessage(msg: DisplayMessage): msg is OptimisticMessage & {
+  id: string;
+  direction: 'OUTBOUND';
+  type: 'TEXT';
+  isOptimistic: true;
+} {
+  return 'isOptimistic' in msg && msg.isOptimistic === true;
+}
+
+function toDisplayMessage(opt: OptimisticMessage): DisplayMessage {
+  return {
+    ...opt,
+    id: opt.clientId,
+    direction: 'OUTBOUND',
+    type: 'TEXT',
+    isOptimistic: true,
+    organizationId: '',
+    conversationId: '',
+    text: opt.text,
+    status: opt.status,
+    errorMessage: opt.errorMessage ?? null,
+    createdAt: opt.createdAt,
+    mediaUrl: null,
+    mediaMimeType: null,
+    mediaCaption: null,
+    mediaSizeBytes: null,
+    mediaFileName: null,
+    externalMessageId: null,
+    sentByUserId: null,
+    sentAt: null,
+    updatedAt: opt.createdAt,
+  } as DisplayMessage;
+}
 
 interface ChatViewProps {
   orgSlug: string;
@@ -52,6 +98,13 @@ interface ChatViewProps {
       status: string;
       notes: string | null;
       createdAt: Date | string;
+      interestVehicle?: {
+        id: string;
+        brand: string;
+        model: string;
+        year: number | null;
+        salePriceCents: number;
+      } | null;
     } | null;
     channelInstance: {
       id: string;
@@ -71,9 +124,11 @@ interface ChatViewProps {
     email: string;
     role: string;
   }>;
+  currentUserId: string;
 }
 
-function getMessageCopyText(msg: Message): string | null {
+function getMessageCopyText(msg: DisplayMessage): string | null {
+  if (isOptimisticMessage(msg)) return msg.text;
   const text = msg.text?.trim();
   if (text) return msg.text ?? null;
   const cap = msg.mediaCaption?.trim();
@@ -115,7 +170,11 @@ function isSameDay(a: Date | string, b: Date | string): boolean {
   );
 }
 
-function MessageStatusIcon({ status }: { status: Message['status'] }) {
+function MessageStatusIcon({
+  status,
+}: {
+  status: Message['status'] | OptimisticMessage['status'];
+}) {
   if (status === 'PENDING')
     return (
       <Clock className="h-3 w-3 text-zinc-400 dark:text-zinc-500" aria-hidden />
@@ -166,36 +225,89 @@ export function ChatView({
   conversation,
   messages,
   teamMembers,
+  currentUserId,
 }: ChatViewProps) {
   const router = useRouter();
   const [text, setText] = useState('');
   const [contactPanelOpen, setContactPanelOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [optimisticMessages, setOptimisticMessages] = useState<
+    OptimisticMessage[]
+  >([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages.length]);
+    setOptimisticMessages((prev) =>
+      prev.filter((opt) => {
+        if (opt.status === 'FAILED') return true;
+        return !messages.some(
+          (m) =>
+            m.direction === 'OUTBOUND' &&
+            m.text === opt.text &&
+            Math.abs(
+              new Date(m.createdAt).getTime() - opt.createdAt.getTime(),
+            ) < 120_000,
+        );
+      }),
+    );
+  }, [messages]);
 
-  const messagesAsc = [...messages].reverse();
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages.length, optimisticMessages.length]);
+
+  const messagesAsc: DisplayMessage[] = [
+    ...[...messages].reverse(),
+    ...optimisticMessages.map(toDisplayMessage),
+  ];
+
+  const channelOffline = conversation.channelInstance.status !== 'CONNECTED';
+  const needsAttend = !conversation.assignedToId;
+  const assignedToOther =
+    Boolean(conversation.assignedToId) &&
+    conversation.assignedToId !== currentUserId;
+  const canReply = !channelOffline && !needsAttend && !assignedToOther;
 
   const handleSend = () => {
-    if (!text.trim()) return;
-    setError(null);
-    const formData = new FormData();
-    formData.set('conversationId', conversation.id);
-    formData.set('text', text);
+    const trimmed = text.trim();
+    if (!trimmed || !canReply) return;
 
-    startTransition(async () => {
+    setError(null);
+    const clientId = `opt-${crypto.randomUUID()}`;
+    const sentText = trimmed;
+    setText('');
+    document.getElementById('inbox-composer')?.focus();
+
+    setOptimisticMessages((prev) => [
+      ...prev,
+      {
+        clientId,
+        text: sentText,
+        status: 'PENDING',
+        createdAt: new Date(),
+      },
+    ]);
+
+    void (async () => {
       try {
+        const formData = new FormData();
+        formData.set('conversationId', conversation.id);
+        formData.set('text', sentText);
         await sendMessageAction(orgSlug, formData);
-        setText('');
         router.refresh();
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Erro ao enviar');
+        const message =
+          err instanceof Error ? err.message : 'Erro ao enviar';
+        setOptimisticMessages((prev) =>
+          prev.map((m) =>
+            m.clientId === clientId
+              ? { ...m, status: 'FAILED', errorMessage: message }
+              : m,
+          ),
+        );
       }
-    });
+    })();
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -211,107 +323,20 @@ export function ChatView({
         await attendConversationAction(orgSlug, conversation.id);
         router.refresh();
       } catch (err) {
-        alert(err instanceof Error ? err.message : 'Erro');
+        setError(err instanceof Error ? err.message : 'Erro ao atender');
       }
     });
   };
-
-  const handleResolve = () => {
-    startTransition(async () => {
-      try {
-        await resolveConversationAction(orgSlug, conversation.id);
-        router.refresh();
-      } catch (err) {
-        alert(err instanceof Error ? err.message : 'Erro');
-      }
-    });
-  };
-
-  const displayName =
-    conversation.contactName?.trim() ||
-    formatPhone(conversation.phoneNumber) ||
-    conversation.phoneNumber;
-
-  const channelOffline = conversation.channelInstance.status !== 'CONNECTED';
 
   return (
-    <div className="flex h-full min-h-0 flex-1 flex-col bg-white dark:bg-zinc-950 md:flex-row">
+    <div className="flex h-full min-h-0 flex-1 bg-white dark:bg-zinc-950">
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <div className="shrink-0 border-b border-zinc-200/80 bg-white px-4 py-3 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
-          <div className="flex items-center justify-between gap-2">
-            <button
-              type="button"
-              onClick={() => setContactPanelOpen(true)}
-              className="flex min-w-0 items-center gap-3 rounded-md p-1 -m-1 text-left transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-900"
-            >
-              <ContactAvatar
-                name={conversation.contactName}
-                avatarUrl={conversation.contactAvatar}
-                size="md"
-              />
-              <div className="min-w-0">
-                <p className="truncate font-medium">{displayName}</p>
-                <p className="text-muted-foreground text-xs">
-                  {formatPhone(conversation.phoneNumber)}
-                </p>
-              </div>
-            </button>
-            <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
-              {!conversation.assignedToId ? (
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={handleAttend}
-                  disabled={isPending}
-                >
-                  <UserPlus className="mr-1 h-3 w-3" />
-                  Atender
-                </Button>
-              ) : null}
-              {conversation.assignedToId &&
-              conversation.status === 'OPEN' ? (
-                <>
-                  {conversation.assignedTo ? (
-                    <span className="text-xs text-zinc-500">
-                      Atendido por{' '}
-                      {conversation.assignedTo.name ??
-                        conversation.assignedTo.email}
-                    </span>
-                  ) : null}
-                  <ReassignButton
-                    orgSlug={orgSlug}
-                    conversationId={conversation.id}
-                    currentAssignedId={conversation.assignedToId}
-                    teamMembers={teamMembers}
-                  />
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={handleResolve}
-                    disabled={isPending}
-                  >
-                    <CheckCircle2 className="mr-1 h-3 w-3" />
-                    Encerrar atendimento
-                  </Button>
-                </>
-              ) : null}
-              {conversation.status === 'RESOLVED' ? (
-                <span className="rounded-md bg-green-50 px-2 py-1 text-xs text-green-700 dark:bg-green-950/40 dark:text-green-300">
-                  ✓ Resolvido
-                </span>
-              ) : null}
-              {conversation.lead ? (
-                <Link
-                  href={`/${orgSlug}/leads/${conversation.lead.id}`}
-                  className="shrink-0 rounded-md bg-purple-50 px-2 py-1 text-xs text-purple-700 hover:bg-purple-100 dark:bg-purple-950/50 dark:text-purple-300 dark:hover:bg-purple-950"
-                >
-                  Ver lead → {conversation.lead.name}
-                </Link>
-              ) : null}
-            </div>
-          </div>
-        </div>
+        <ChatHeader
+          orgSlug={orgSlug}
+          conversation={conversation}
+          teamMembers={teamMembers}
+          onOpenContactPanel={() => setContactPanelOpen(true)}
+        />
 
         <div className="min-h-0 flex-1 overflow-y-auto bg-[#efeae2] p-4 dark:bg-zinc-900/60">
           <div className="space-y-3">
@@ -324,7 +349,12 @@ export function ChatView({
               const prevMsg = idx > 0 ? messagesAsc[idx - 1] : null;
               const showDateSep =
                 !prevMsg || !isSameDay(prevMsg.createdAt, msg.createdAt);
-              const isOutbound = msg.direction === 'OUTBOUND';
+              const isOutbound =
+                isOptimisticMessage(msg) || msg.direction === 'OUTBOUND';
+              const msgStatus = isOptimisticMessage(msg)
+                ? msg.status
+                : msg.status;
+              const msgType = isOptimisticMessage(msg) ? 'TEXT' : msg.type;
               return (
                 <div key={msg.id}>
                   {showDateSep ? (
@@ -345,7 +375,7 @@ export function ChatView({
                           : 'bg-white text-zinc-900 dark:bg-zinc-900 dark:text-zinc-100'
                       }`}
                     >
-                      {msg.type === 'IMAGE' ? (
+                      {msgType === 'IMAGE' && !isOptimisticMessage(msg) ? (
                         <ImageMessage
                           orgSlug={orgSlug}
                           messageId={msg.id}
@@ -354,7 +384,7 @@ export function ChatView({
                           caption={msg.mediaCaption}
                         />
                       ) : null}
-                      {msg.type === 'AUDIO' ? (
+                      {msgType === 'AUDIO' && !isOptimisticMessage(msg) ? (
                         <AudioMessage
                           orgSlug={orgSlug}
                           messageId={msg.id}
@@ -364,7 +394,7 @@ export function ChatView({
                           fileName={msg.mediaFileName}
                         />
                       ) : null}
-                      {msg.type === 'DOCUMENT' ? (
+                      {msgType === 'DOCUMENT' && !isOptimisticMessage(msg) ? (
                         <DocumentMessage
                           orgSlug={orgSlug}
                           messageId={msg.id}
@@ -374,12 +404,13 @@ export function ChatView({
                           fileName={msg.mediaFileName}
                         />
                       ) : null}
-                      {msg.type === 'VIDEO' ? (
+                      {msgType === 'VIDEO' && !isOptimisticMessage(msg) ? (
                         <p className="text-sm italic opacity-75">
                           🎥 Vídeo (visualização em breve)
                         </p>
                       ) : null}
-                      {(msg.type === 'LOCATION' ||
+                      {!isOptimisticMessage(msg) &&
+                      (msg.type === 'LOCATION' ||
                         msg.type === 'CONTACT' ||
                         msg.type === 'STICKER') && (
                         <p className="text-sm italic opacity-75">
@@ -388,15 +419,16 @@ export function ChatView({
                           {msg.type === 'STICKER' && '🏷️ Figurinha'}
                         </p>
                       )}
-                      {msg.type === 'TEXT' && msg.text ? (
+                      {msgType === 'TEXT' && msg.text ? (
                         <p className="text-sm break-words whitespace-pre-wrap">
                           {msg.text}
                         </p>
                       ) : null}
-                      {msg.type === 'TEXT' && !msg.text ? (
+                      {msgType === 'TEXT' && !msg.text ? (
                         <p className="text-sm italic opacity-75">Mensagem</p>
                       ) : null}
-                      {(msg.type === 'UNKNOWN' || msg.type === 'SYSTEM') && (
+                      {!isOptimisticMessage(msg) &&
+                      (msg.type === 'UNKNOWN' || msg.type === 'SYSTEM') && (
                         <p className="text-sm italic opacity-75">
                           {nonTextLabel(msg.type)}
                         </p>
@@ -410,7 +442,7 @@ export function ChatView({
                       >
                         <span>{formatRelativeTime(msg.createdAt)}</span>
                         {isOutbound ? (
-                          <MessageStatusIcon status={msg.status} />
+                          <MessageStatusIcon status={msgStatus} />
                         ) : null}
                       </div>
                       {msg.errorMessage ? (
@@ -419,6 +451,7 @@ export function ChatView({
                         </p>
                       ) : null}
                     </div>
+                    {!isOptimisticMessage(msg) ? (
                     <div
                       className={`absolute top-0 z-10 ${isOutbound ? 'right-full mr-1' : 'left-full ml-1'}`}
                     >
@@ -428,6 +461,7 @@ export function ChatView({
                         onDelete={() => alert('Deletar: em breve')}
                       />
                     </div>
+                    ) : null}
                   </div>
                   </div>
                 </div>
@@ -453,6 +487,39 @@ export function ChatView({
             </div>
           ) : null}
 
+          {needsAttend ? (
+            <div className="flex items-center gap-3 border-b border-purple-200/70 bg-purple-50/90 px-4 py-3 dark:border-purple-900/40 dark:bg-purple-950/30">
+              <UserPlus className="h-4 w-4 shrink-0 text-purple-700 dark:text-purple-300" />
+              <p className="min-w-0 flex-1 text-xs text-purple-900 dark:text-purple-100">
+                Esta conversa está na <span className="font-semibold">Entrada</span>.
+                Clique em <span className="font-semibold">Atender</span> para
+                assumir o lead e liberar o envio de mensagens.
+              </p>
+              <Button
+                type="button"
+                size="sm"
+                onClick={handleAttend}
+                disabled={isPending}
+                className="shrink-0"
+              >
+                Atender
+              </Button>
+            </div>
+          ) : null}
+
+          {assignedToOther ? (
+            <div className="border-b border-amber-200/70 bg-amber-50/90 px-4 py-2.5 text-xs text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-100">
+              Atendida por{' '}
+              <span className="font-semibold">
+                {conversation.assignedTo?.name ??
+                  conversation.assignedTo?.email ??
+                  'outro vendedor'}
+              </span>
+              . Use <span className="font-semibold">Reatribuir</span> para
+              transferir para você.
+            </div>
+          ) : null}
+
           <MediaSendProvider
             orgSlug={orgSlug}
             conversationId={conversation.id}
@@ -463,27 +530,37 @@ export function ChatView({
               </p>
             ) : null}
 
+            <InboxQuickReplies
+              disabled={!canReply}
+              onSelect={(replyText) => setText(replyText)}
+            />
+
             <div className="flex items-end gap-2 px-3 py-3">
-              <MediaAttachButton disabled={channelOffline} />
+              <MediaAttachButton disabled={!canReply} />
               <div className="flex min-w-0 flex-1 items-end rounded-3xl bg-white px-3 py-2 shadow-sm ring-1 ring-black/[0.06] dark:bg-zinc-950 dark:ring-white/10">
                 <Textarea
+                  id="inbox-composer"
                   value={text}
                   onChange={(e) => setText(e.target.value)}
                   onKeyDown={handleKeyDown}
                   placeholder={
                     channelOffline
                       ? 'Reconecte o canal para enviar...'
-                      : 'Digite uma mensagem...'
+                      : needsAttend
+                        ? 'Atenda a conversa para responder...'
+                        : assignedToOther
+                          ? 'Conversa com outro vendedor...'
+                          : 'Digite uma mensagem...'
                   }
                   rows={1}
-                  disabled={isPending || channelOffline}
+                  disabled={!canReply}
                   className="max-h-32 min-h-[24px] flex-1 resize-none border-0 bg-transparent p-0 text-sm shadow-none focus-visible:ring-0 disabled:opacity-60"
                 />
               </div>
               <Button
                 type="button"
                 onClick={handleSend}
-                disabled={isPending || !text.trim() || channelOffline}
+                disabled={!text.trim() || !canReply}
                 size="icon"
                 className="h-10 w-10 shrink-0 rounded-full shadow-sm disabled:opacity-40"
               >
@@ -496,6 +573,25 @@ export function ChatView({
 
       <ContactPanel
         orgSlug={orgSlug}
+        mode="sidebar"
+        open
+        onClose={() => {}}
+        contactName={conversation.contactName}
+        contactAvatar={conversation.contactAvatar}
+        phoneNumber={conversation.phoneNumber}
+        lead={conversation.lead}
+        conversationInfo={{
+          id: conversation.id,
+          channelName: conversation.channelInstance.name,
+          createdAt: conversation.createdAt,
+          lastMessageAt: conversation.lastMessageAt,
+          totalMessages: messages.length,
+        }}
+      />
+
+      <ContactPanel
+        orgSlug={orgSlug}
+        mode="drawer"
         open={contactPanelOpen}
         onClose={() => setContactPanelOpen(false)}
         contactName={conversation.contactName}

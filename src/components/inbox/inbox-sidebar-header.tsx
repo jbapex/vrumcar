@@ -13,8 +13,8 @@ export function InboxSidebarHeader({ connectedChannels }: Props) {
         : `${connectedChannels} canais online`;
 
   return (
-    <div className="flex shrink-0 items-center gap-3 border-b border-zinc-200/80 bg-white px-4 py-4 dark:border-zinc-800 dark:bg-zinc-950">
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 shadow-sm">
+    <div className="flex shrink-0 items-center gap-3 border-b border-zinc-200/80 bg-gradient-to-r from-emerald-50/80 to-white px-4 py-3.5 dark:border-zinc-800 dark:from-emerald-950/20 dark:to-zinc-950">
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 shadow-sm">
         <MessageCircle className="h-5 w-5 text-white" strokeWidth={2.25} />
       </div>
       <div className="min-w-0">

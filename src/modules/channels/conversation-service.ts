@@ -470,6 +470,24 @@ export async function updateMessageStatus(
   });
 }
 
+/**
+ * Garante que o usuário assumiu a conversa antes de enviar mensagens.
+ * Fluxo explícito: Entrada → Atender → responder.
+ */
+export function assertConversationReplyAllowed(
+  conversation: { assignedToId: string | null },
+  userId: string,
+): void {
+  if (!conversation.assignedToId) {
+    throw new Error(
+      'Assuma esta conversa clicando em Atender antes de responder',
+    );
+  }
+  if (conversation.assignedToId !== userId) {
+    throw new Error('Esta conversa está sendo atendida por outro vendedor');
+  }
+}
+
 export async function sendTextMessage(
   organizationId: string,
   userId: string,
@@ -484,6 +502,7 @@ export async function sendTextMessage(
     include: { channelInstance: true },
   });
   if (!conversation) throw new Error('Conversation not found');
+  assertConversationReplyAllowed(conversation, userId);
   if (conversation.channelInstance.status !== 'CONNECTED') {
     throw new Error('Channel instance not connected');
   }
@@ -625,6 +644,8 @@ export async function listConversations(
             type: true,
             text: true,
             mediaCaption: true,
+            direction: true,
+            createdAt: true,
           },
           orderBy: { createdAt: 'desc' },
           take: 1,
@@ -849,6 +870,7 @@ export async function sendMediaMessage(
     include: { channelInstance: true },
   });
   if (!conversation) throw new Error('Conversa não encontrada');
+  assertConversationReplyAllowed(conversation, userId);
   if (!conversation.channelInstance.encryptedToken) {
     throw new Error('Canal sem token configurado');
   }

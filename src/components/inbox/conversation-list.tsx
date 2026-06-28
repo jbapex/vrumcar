@@ -1,9 +1,15 @@
 import { ContactAvatar } from '@/components/inbox/contact-avatar';
 import { formatRelativeTime } from '@/lib/format/relative-time';
 import { formatPhone } from '@/lib/format/phone';
+import {
+  getConversationSlaLevel,
+  slaLabel,
+  slaTimeClass,
+} from '@/lib/inbox/sla';
+import { LEAD_STATUS_LABELS } from '@/lib/labels/leads';
 import { cn } from '@/lib/utils';
 import type { ConversationStatus, LeadStatus, MessageType } from '@prisma/client';
-import { UserRound } from 'lucide-react';
+import { Smartphone, UserRound } from 'lucide-react';
 import Link from 'next/link';
 
 export type ConversationListItem = {
@@ -18,10 +24,13 @@ export type ConversationListItem = {
   leadId: string | null;
   lead: { id: string; name: string; status: LeadStatus } | null;
   assignedTo: { id: string; name: string | null; email: string } | null;
+  channelName?: string;
   messages?: Array<{
     type: MessageType;
     text: string | null;
     mediaCaption: string | null;
+    direction?: 'INBOUND' | 'OUTBOUND';
+    createdAt?: Date | string;
   }>;
 };
 
@@ -48,6 +57,7 @@ interface Props {
   activeConversationId?: string;
   tab?: 'inbox' | 'attending' | 'resolved';
   onlyMine?: boolean;
+  search?: string;
 }
 
 export function ConversationList({
@@ -56,6 +66,7 @@ export function ConversationList({
   activeConversationId,
   tab,
   onlyMine,
+  search,
 }: Props) {
   return (
     <div className="flex flex-col bg-white dark:bg-zinc-950">
@@ -63,6 +74,7 @@ export function ConversationList({
         const params = new URLSearchParams();
         if (tab) params.set('tab', tab);
         if (onlyMine) params.set('mine', 'true');
+        if (search?.trim()) params.set('search', search.trim());
         const qs = params.toString();
         const tabQuery = qs ? `?${qs}` : '';
         const href = `/${orgSlug}/inbox/${c.id}${tabQuery}`;
@@ -72,6 +84,13 @@ export function ConversationList({
           c.contactName?.trim() || formatPhone(c.phoneNumber) || c.phoneNumber;
         const preview = getMessagePreview(c);
         const time = formatRelativeTime(c.lastMessageAt);
+        const lastDirection = c.messages?.[0]?.direction ?? null;
+        const sla = getConversationSlaLevel({
+          unreadCount: c.unreadCount,
+          lastMessageAt: c.lastMessageAt,
+          lastMessageDirection: lastDirection,
+          status: c.status,
+        });
 
         return (
           <Link
@@ -108,9 +127,11 @@ export function ConversationList({
                 <span
                   className={cn(
                     'shrink-0 text-[11px]',
-                    hasUnread
-                      ? 'font-medium text-purple-600 dark:text-purple-400'
-                      : 'text-zinc-400',
+                    sla && sla !== 'ok'
+                      ? slaTimeClass(sla)
+                      : hasUnread
+                        ? 'font-medium text-purple-600 dark:text-purple-400'
+                        : 'text-zinc-400',
                   )}
                 >
                   {time}
@@ -143,11 +164,36 @@ export function ConversationList({
                 ) : null}
               </div>
 
-              {c.assignedTo ? (
-                <p className="mt-1 truncate text-[11px] text-zinc-400">
-                  {c.assignedTo.name ?? c.assignedTo.email}
-                </p>
-              ) : null}
+              <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                {sla && sla !== 'ok' ? (
+                  <span
+                    className={cn(
+                      'rounded-md px-1.5 py-0.5 text-[10px] font-medium',
+                      sla === 'critical'
+                        ? 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300'
+                        : 'bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300',
+                    )}
+                  >
+                    {slaLabel(sla)}
+                  </span>
+                ) : null}
+                {c.lead ? (
+                  <span className="rounded-md bg-purple-50 px-1.5 py-0.5 text-[10px] font-medium text-purple-700 dark:bg-purple-950/40 dark:text-purple-300">
+                    {LEAD_STATUS_LABELS[c.lead.status]}
+                  </span>
+                ) : null}
+                {c.channelName ? (
+                  <span className="inline-flex items-center gap-0.5 rounded-md bg-emerald-50 px-1.5 py-0.5 text-[10px] text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
+                    <Smartphone className="h-2.5 w-2.5" aria-hidden />
+                    {c.channelName}
+                  </span>
+                ) : null}
+                {c.assignedTo ? (
+                  <span className="truncate text-[10px] text-zinc-400">
+                    {c.assignedTo.name ?? c.assignedTo.email}
+                  </span>
+                ) : null}
+              </div>
             </div>
           </Link>
         );

@@ -1,13 +1,13 @@
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { listConversations, migrateConversationsFromRemovedChannels } from '@/modules/channels/conversation-service';
+import {
+  listConversations,
+  migrateConversationsFromRemovedChannels,
+} from '@/modules/channels/conversation-service';
 import type { ConversationListItem } from '@/components/inbox/conversation-list';
-import { ConversationList } from '@/components/inbox/conversation-list';
-import { ConversationTabs } from '@/components/inbox/conversation-tabs';
 import { InboxEmptyPanel } from '@/components/inbox/inbox-empty-panel';
-import { InboxListEmpty } from '@/components/inbox/inbox-list-empty';
-import { InboxSidebarHeader } from '@/components/inbox/inbox-sidebar-header';
 import { InboxPoller } from '@/components/inbox/inbox-poller';
+import { InboxSidebar } from '@/components/inbox/inbox-sidebar';
 import { NotificationSound } from '@/components/inbox/notification-sound';
 import { notFound, redirect } from 'next/navigation';
 
@@ -33,6 +33,26 @@ function parseOnlyMine(
 ): boolean {
   const v = Array.isArray(raw) ? raw[0] : raw;
   return v === 'true';
+}
+
+function toListItem(
+  c: Awaited<ReturnType<typeof listConversations>>['items'][number],
+): ConversationListItem {
+  return {
+    id: c.id,
+    contactName: c.contactName,
+    contactAvatar: c.contactAvatar,
+    phoneNumber: c.phoneNumber,
+    lastMessagePreview: c.lastMessagePreview,
+    lastMessageAt: c.lastMessageAt,
+    unreadCount: c.unreadCount,
+    status: c.status,
+    leadId: c.leadId,
+    lead: c.lead,
+    assignedTo: c.assignedTo,
+    channelName: c.channelInstance?.name,
+    messages: c.messages,
+  };
 }
 
 export default async function InboxPage({
@@ -125,61 +145,24 @@ export default async function InboxPage({
     }),
   ]);
 
-  const listItems: ConversationListItem[] = conversationsResult.items.map(
-    (c) => ({
-      id: c.id,
-      contactName: c.contactName,
-      contactAvatar: c.contactAvatar,
-      phoneNumber: c.phoneNumber,
-      lastMessagePreview: c.lastMessagePreview,
-      lastMessageAt: c.lastMessageAt,
-      unreadCount: c.unreadCount,
-      status: c.status,
-      leadId: c.leadId,
-      lead: c.lead,
-      assignedTo: c.assignedTo,
-      messages: c.messages,
-    }),
-  );
-
-  const emptyMessages: Record<InboxTab, string> = {
-    inbox: 'Nenhuma conversa na entrada.',
-    attending: 'Nenhuma conversa em atendimento.',
-    resolved: 'Nenhuma conversa resolvida.',
-  };
+  const listItems = conversationsResult.items.map(toListItem);
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden md:flex-row">
-      <aside className="flex h-full min-h-0 w-full shrink-0 flex-col overflow-hidden bg-white shadow-sm md:w-[min(100%,400px)] md:border-r md:border-zinc-200/80 dark:bg-zinc-950 dark:md:border-zinc-800">
-        <InboxSidebarHeader connectedChannels={connectedChannels} />
-        <ConversationTabs
-          orgSlug={orgSlug}
-          currentTab={tab}
-          userRole={userRole}
-          onlyMine={onlyMine}
-          counts={{
-            inbox: inboxCount.total,
-            attending: attendingCount.total,
-            resolved: resolvedCount.total,
-          }}
-        />
-        <div className="min-h-0 flex-1 overflow-y-auto">
-          {listItems.length === 0 ? (
-            <InboxListEmpty
-              orgSlug={orgSlug}
-              message={emptyMessages[tab]}
-              noChannels={connectedChannels === 0}
-            />
-          ) : (
-            <ConversationList
-              orgSlug={orgSlug}
-              items={listItems}
-              tab={tab}
-              onlyMine={onlyMine}
-            />
-          )}
-        </div>
-      </aside>
+      <InboxSidebar
+        orgSlug={orgSlug}
+        tab={tab}
+        search={search}
+        onlyMine={onlyMine}
+        userRole={userRole}
+        connectedChannels={connectedChannels}
+        items={listItems}
+        counts={{
+          inbox: inboxCount.total,
+          attending: attendingCount.total,
+          resolved: resolvedCount.total,
+        }}
+      />
       <InboxEmptyPanel />
       <InboxPoller intervalMs={3000} />
       <NotificationSound messageCount={inboundCount} />
