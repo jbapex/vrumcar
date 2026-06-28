@@ -67,6 +67,16 @@ export default async function TeamPage({ params }: Props) {
     createdAt: inv.createdAt.toISOString(),
   }));
 
+  const currentMembership = await prisma.membership.findFirst({
+    where: {
+      organizationId: org.id,
+      userId: session.user.id,
+      isActive: true,
+    },
+    select: { role: true },
+  });
+  const currentUserRole = currentMembership?.role ?? 'VIEWER';
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -86,6 +96,7 @@ export default async function TeamPage({ params }: Props) {
         members={members}
         orgSlug={orgSlug}
         currentUserId={session.user.id}
+        currentUserRole={currentUserRole}
       />
     </div>
   );

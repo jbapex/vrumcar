@@ -1,6 +1,26 @@
 'use client';
 
-import { Crown, Shield, ShieldCheck, User, UserCog } from 'lucide-react';
+import {
+  updateMemberRoleAction,
+  toggleMemberActiveAction,
+  removeMemberAction,
+} from '@/app/[orgSlug]/settings/actions';
+import {
+  Crown,
+  Loader2,
+  MoreVertical,
+  Pencil,
+  Shield,
+  ShieldCheck,
+  Trash2,
+  User,
+  UserCheck,
+  UserCog,
+  UserX,
+} from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useLayoutEffect, useRef, useState, useTransition } from 'react';
+import { createPortal } from 'react-dom';
 
 interface Member {
   membershipId: string;
@@ -16,6 +36,7 @@ interface Props {
   members: Member[];
   orgSlug: string;
   currentUserId: string;
+  currentUserRole: string;
 }
 
 function getRoleInfo(role: string): {
@@ -75,11 +96,232 @@ function formatDate(iso: string): string {
   });
 }
 
-export function TeamTable({ members, orgSlug, currentUserId }: Props) {
-  void orgSlug;
+function MemberActions({
+  member,
+  orgSlug,
+  currentUserId,
+  currentUserRole,
+}: {
+  member: Member;
+  orgSlug: string;
+  currentUserId: string;
+  currentUserRole: string;
+}) {
+  const router = useRouter();
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
+  const [editingRole, setEditingRole] = useState(false);
+  const [confirmRemove, setConfirmRemove] = useState(false);
+  const [isPending, startTransition] = useTransition();
+
+  useLayoutEffect(() => {
+    if (!menuOpen || !buttonRef.current) return;
+
+    const updatePosition = () => {
+      const button = buttonRef.current;
+      if (!button) return;
+
+      const rect = button.getBoundingClientRect();
+      const menuWidth = 160;
+      const menuHeight = 128;
+      const gap = 4;
+
+      let top = rect.bottom + gap;
+      let left = rect.right - menuWidth;
+
+      if (top + menuHeight > window.innerHeight - gap) {
+        top = rect.top - menuHeight - gap;
+      }
+      if (left < gap) left = gap;
+
+      setMenuPosition({ top, left });
+    };
+
+    updatePosition();
+    window.addEventListener('scroll', updatePosition, true);
+    window.addEventListener('resize', updatePosition);
+    return () => {
+      window.removeEventListener('scroll', updatePosition, true);
+      window.removeEventListener('resize', updatePosition);
+    };
+  }, [menuOpen]);
+
+  const isMe = member.userId === currentUserId;
+  const isOwner = member.role === 'OWNER';
+  const canEdit =
+    ['OWNER', 'ADMIN'].includes(currentUserRole) && !isMe && !isOwner;
+
+  if (!canEdit) return <span className="text-xs text-zinc-300">—</span>;
+
+  const handleRoleChange = (newRole: string) => {
+    startTransition(async () => {
+      try {
+        await updateMemberRoleAction(orgSlug, member.membershipId, newRole);
+        router.refresh();
+        setEditingRole(false);
+        setMenuOpen(false);
+      } catch (err) {
+        alert(err instanceof Error ? err.message : 'Erro');
+      }
+    });
+  };
+
+  const handleToggleActive = () => {
+    startTransition(async () => {
+      try {
+        await toggleMemberActiveAction(orgSlug, member.membershipId);
+        router.refresh();
+        setMenuOpen(false);
+      } catch (err) {
+        alert(err instanceof Error ? err.message : 'Erro');
+      }
+    });
+  };
+
+  const handleRemove = () => {
+    startTransition(async () => {
+      try {
+        await removeMemberAction(orgSlug, member.membershipId);
+        router.refresh();
+        setConfirmRemove(false);
+        setMenuOpen(false);
+      } catch (err) {
+        alert(err instanceof Error ? err.message : 'Erro');
+      }
+    });
+  };
+
+  if (editingRole) {
+    return (
+      <div className="flex items-center gap-1">
+        <select
+          defaultValue={member.role}
+          onChange={(e) => handleRoleChange(e.target.value)}
+          disabled={isPending}
+          className="rounded-md border border-zinc-300 px-2 py-1 text-xs focus:border-purple-500 focus:outline-none"
+        >
+          <option value="SALES">Vendedor</option>
+          <option value="MANAGER">Gerente</option>
+          <option value="ADMIN">Administrador</option>
+          <option value="FINANCE">Financeiro</option>
+          <option value="VIEWER">Visualizador</option>
+        </select>
+        {isPending && <Loader2 className="h-3 w-3 animate-spin" />}
+        <button
+          type="button"
+          onClick={() => setEditingRole(false)}
+          className="text-xs text-zinc-400 hover:text-zinc-600"
+        >
+          Cancelar
+        </button>
+      </div>
+    );
+  }
+
+  if (confirmRemove) {
+    return (
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-red-600">Remover?</span>
+        <button
+          type="button"
+          onClick={handleRemove}
+          disabled={isPending}
+          className="rounded-md bg-red-600 px-2 py-1 text-xs text-white hover:bg-red-700 disabled:opacity-50"
+        >
+          {isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Sim'}
+        </button>
+        <button
+          type="button"
+          onClick={() => setConfirmRemove(false)}
+          className="text-xs text-zinc-400 hover:text-zinc-600"
+        >
+          Não
+        </button>
+      </div>
+    );
+  }
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-zinc-200">
+    <div className="relative">
+      <button
+        ref={buttonRef}
+        type="button"
+        onClick={() => setMenuOpen(!menuOpen)}
+        className="rounded-md p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600"
+      >
+        <MoreVertical className="h-4 w-4" />
+      </button>
+
+      {menuOpen &&
+        createPortal(
+          <>
+            <div
+              className="fixed inset-0 z-40"
+              onClick={() => setMenuOpen(false)}
+              aria-hidden
+            />
+            <div
+              className="fixed z-50 min-w-[160px] rounded-md border border-zinc-200 bg-white py-1 shadow-lg"
+              style={{
+                top: menuPosition.top,
+                left: menuPosition.left,
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingRole(true);
+                  setMenuOpen(false);
+                }}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-zinc-700 hover:bg-zinc-100"
+              >
+                <Pencil className="h-3 w-3" />
+                Alterar cargo
+              </button>
+              <button
+                type="button"
+                onClick={handleToggleActive}
+                disabled={isPending}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-zinc-700 hover:bg-zinc-100 disabled:opacity-50"
+              >
+                {member.isActive ? (
+                  <>
+                    <UserX className="h-3 w-3" /> Desativar
+                  </>
+                ) : (
+                  <>
+                    <UserCheck className="h-3 w-3" /> Reativar
+                  </>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setConfirmRemove(true);
+                  setMenuOpen(false);
+                }}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
+              >
+                <Trash2 className="h-3 w-3" />
+                Remover
+              </button>
+            </div>
+          </>,
+          document.body,
+        )}
+    </div>
+  );
+}
+
+export function TeamTable({
+  members,
+  orgSlug,
+  currentUserId,
+  currentUserRole,
+}: Props) {
+  return (
+    <div className="rounded-lg border border-zinc-200">
       <table className="w-full text-left text-sm">
         <thead>
           <tr className="border-b border-zinc-200 bg-zinc-50 text-xs font-medium uppercase text-zinc-500">
@@ -145,7 +387,12 @@ export function TeamTable({ members, orgSlug, currentUserId }: Props) {
                   {formatDate(member.joinedAt)}
                 </td>
                 <td className="px-4 py-3 text-right">
-                  <span className="text-xs text-zinc-300">—</span>
+                  <MemberActions
+                    member={member}
+                    orgSlug={orgSlug}
+                    currentUserId={currentUserId}
+                    currentUserRole={currentUserRole}
+                  />
                 </td>
               </tr>
             );

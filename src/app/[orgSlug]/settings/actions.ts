@@ -226,6 +226,94 @@ export async function cancelInvitationAction(
   revalidatePath(`/${orgSlug}/settings/team`);
 }
 
+export async function updateMemberRoleAction(
+  orgSlug: string,
+  membershipId: string,
+  newRole: string,
+) {
+  const { org, userId } = await requireAdminAccess(orgSlug);
+
+  const validRoles = ['SALES', 'MANAGER', 'ADMIN', 'FINANCE', 'VIEWER'];
+  if (!validRoles.includes(newRole)) {
+    throw new Error('Cargo inválido');
+  }
+
+  const membership = await prisma.membership.findFirst({
+    where: { id: membershipId, organizationId: org.id },
+  });
+  if (!membership) throw new Error('Membro não encontrado');
+
+  if (membership.role === 'OWNER') {
+    throw new Error('Não é possível alterar o cargo do proprietário');
+  }
+
+  if (membership.userId === userId) {
+    throw new Error('Você não pode alterar seu próprio cargo');
+  }
+
+  await prisma.membership.update({
+    where: { id: membershipId },
+    data: {
+      role: newRole as 'SALES' | 'MANAGER' | 'ADMIN' | 'FINANCE' | 'VIEWER',
+    },
+  });
+
+  revalidatePath(`/${orgSlug}/settings/team`);
+}
+
+export async function toggleMemberActiveAction(
+  orgSlug: string,
+  membershipId: string,
+) {
+  const { org, userId } = await requireAdminAccess(orgSlug);
+
+  const membership = await prisma.membership.findFirst({
+    where: { id: membershipId, organizationId: org.id },
+  });
+  if (!membership) throw new Error('Membro não encontrado');
+
+  if (membership.role === 'OWNER') {
+    throw new Error('Não é possível desativar o proprietário');
+  }
+
+  if (membership.userId === userId) {
+    throw new Error('Você não pode desativar a si mesmo');
+  }
+
+  await prisma.membership.update({
+    where: { id: membershipId },
+    data: { isActive: !membership.isActive },
+  });
+
+  revalidatePath(`/${orgSlug}/settings/team`);
+}
+
+export async function removeMemberAction(
+  orgSlug: string,
+  membershipId: string,
+) {
+  const { org, userId } = await requireAdminAccess(orgSlug);
+
+  const membership = await prisma.membership.findFirst({
+    where: { id: membershipId, organizationId: org.id },
+  });
+  if (!membership) throw new Error('Membro não encontrado');
+
+  if (membership.role === 'OWNER') {
+    throw new Error('Não é possível remover o proprietário');
+  }
+
+  if (membership.userId === userId) {
+    throw new Error('Você não pode remover a si mesmo');
+  }
+
+  await prisma.membership.delete({
+    where: { id: membershipId },
+  });
+
+  revalidatePath(`/${orgSlug}/settings/team`);
+}
+
 export async function listMembersAction(orgSlug: string) {
   const { org } = await requireAdminAccess(orgSlug);
 
