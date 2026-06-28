@@ -1,7 +1,7 @@
 import { DashboardContent } from '@/components/dashboard/dashboard-content';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { getDashboardMetrics } from '@/modules/dashboard/metrics-service';
+import { getDashboardChartData, getDashboardMetrics } from '@/modules/dashboard/metrics-service';
 import { redirect } from 'next/navigation';
 
 interface Props {
@@ -27,12 +27,14 @@ export default async function DashboardPage({ params }: Props) {
   if (!org || org.memberships.length === 0) redirect('/login');
 
   const metrics = await getDashboardMetrics(org.id);
+  const chartData = await getDashboardChartData(org.id);
 
   return (
     <DashboardContent
       orgSlug={orgSlug}
       orgName={org.name}
       metrics={metrics}
+      chartData={chartData}
     />
   );
 }

@@ -305,3 +305,137 @@ export async function getDashboardMetrics(organizationId: string) {
 }
 
 export type DashboardMetrics = Awaited<ReturnType<typeof getDashboardMetrics>>;
+
+/**
+ * Dados pra gráficos do dashboard.
+ * Separado do getDashboardMetrics pra manter queries limpas.
+ */
+export async function getDashboardChartData(organizationId: string) {
+  const now = new Date();
+
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+  const leadsPerDay = await prisma.$queryRaw<
+    Array<{ day: string; count: bigint }>
+  >`
+    SELECT
+      TO_CHAR(created_at, 'YYYY-MM-DD') as day,
+      COUNT(*)::bigint as count
+    FROM leads
+    WHERE organization_id = ${organizationId}
+      AND deleted_at IS NULL
+      AND created_at >= ${thirtyDaysAgo}
+    GROUP BY day
+    ORDER BY day ASC
+  `;
+
+  const leadsChart: Array<{ date: string; label: string; count: number }> = [];
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+    const key = d.toISOString().split('T')[0]!;
+    const label = d.toLocaleDateString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+    });
+    const found = leadsPerDay.find((r) => r.day === key);
+    leadsChart.push({
+      date: key,
+      label,
+      count: found ? Number(found.count) : 0,
+    });
+  }
+
+  const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+
+  const salesPerMonth = await prisma.$queryRaw<
+    Array<{ month: string; count: bigint; total_cents: bigint }>
+  >`
+    SELECT
+      TO_CHAR(created_at, 'YYYY-MM') as month,
+      COUNT(*)::bigint as count,
+      COALESCE(SUM(final_price_cents), 0)::bigint as total_cents
+    FROM sales
+    WHERE organization_id = ${organizationId}
+      AND status = 'COMPLETED'::"SaleStatus"
+      AND created_at >= ${sixMonthsAgo}
+    GROUP BY month
+    ORDER BY month ASC
+  `;
+
+  const salesChart: Array<{
+    month: string;
+    label: string;
+    count: number;
+    valueReais: number;
+  }> = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const label = d
+      .toLocaleDateString('pt-BR', { month: 'short' })
+      .replace('.', '');
+    const found = salesPerMonth.find((r) => r.month === key);
+    salesChart.push({
+      month: key,
+      label: label.charAt(0).toUpperCase() + label.slice(1),
+      count: found ? Number(found.count) : 0,
+      valueReais: found ? Number(found.total_cents) / 100 : 0,
+    });
+  }
+
+  const recentSales = await prisma.sale.findMany({
+    where: {
+      organizationId,
+      status: 'COMPLETED',
+    },
+    include: {
+      vehicle: { select: { brand: true, model: true, year: true } },
+      customer: { select: { name: true } },
+    },
+    orderBy: { createdAt: 'desc' },
+    take: 5,
+  });
+
+  const recentLeads = await prisma.lead.findMany({
+    where: {
+      organizationId,
+      deletedAt: null,
+    },
+    select: {
+      id: true,
+      name: true,
+      phone: true,
+      source: true,
+      status: true,
+      createdAt: true,
+    },
+    orderBy: { createdAt: 'desc' },
+    take: 5,
+  });
+
+  return {
+    leadsChart,
+    salesChart,
+    recentSales: recentSales.map((s) => ({
+      id: s.id,
+      vehicle: s.vehicle
+        ? `${s.vehicle.brand} ${s.vehicle.model} ${s.vehicle.year ?? ''}`.trim()
+        : '—',
+      customer: s.customer?.name ?? '—',
+      valueCents: s.finalPriceCents,
+      date: s.createdAt.toISOString(),
+    })),
+    recentLeads: recentLeads.map((l) => ({
+      id: l.id,
+      name: l.name,
+      phone: l.phone,
+      source: l.source,
+      status: l.status,
+      date: l.createdAt.toISOString(),
+    })),
+  };
+}
+
+export type DashboardChartData = Awaited<
+  ReturnType<typeof getDashboardChartData>
+>;
