@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { getTenantPrisma } from '@/lib/db/tenant';
 import {
   ChannelInstanceError,
   ChannelInstanceLimitError,
@@ -77,9 +78,7 @@ export async function connectChannelInstanceAction(
   const { org } = await requireOrgAccess(orgSlug);
 
   try {
-    const result = await connectChannelInstance(org.id, instanceId);
-    revalidatePath(`/${orgSlug}/channels`);
-    return result;
+    return await connectChannelInstance(org.id, instanceId);
   } catch (err) {
     if (err instanceof ChannelInstanceError) {
       throw new Error(err.message);
@@ -96,7 +95,9 @@ export async function syncChannelInstanceStatusAction(
 
   try {
     const updated = await syncChannelInstanceStatus(org.id, instanceId);
-    revalidatePath(`/${orgSlug}/channels`);
+    if (updated.status === 'CONNECTED') {
+      revalidatePath(`/${orgSlug}/channels`);
+    }
     return {
       status: updated.status,
       qrCode: updated.lastQrCode,
@@ -109,6 +110,23 @@ export async function syncChannelInstanceStatusAction(
     }
     throw new Error('Erro ao sincronizar');
   }
+}
+
+export async function getChannelInstanceQrAction(
+  orgSlug: string,
+  instanceId: string,
+) {
+  const { org } = await requireOrgAccess(orgSlug);
+  const db = getTenantPrisma(org.id);
+  const instance = await db.channelInstance.findFirst({
+    where: { id: instanceId, deletedAt: null },
+    select: { lastQrCode: true, status: true },
+  });
+  if (!instance) throw new Error('Instância não encontrada');
+  return {
+    qrCode: instance.lastQrCode,
+    status: instance.status,
+  };
 }
 
 export async function deleteChannelInstanceAction(

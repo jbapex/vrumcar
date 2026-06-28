@@ -2,6 +2,7 @@
 
 import {
   connectChannelInstanceAction,
+  getChannelInstanceQrAction,
   syncChannelInstanceStatusAction,
 } from '@/app/[orgSlug]/channels/actions';
 import { Button } from '@/components/ui/button';
@@ -62,9 +63,14 @@ export function QrCodeModal({
     setStatus('CONNECTING');
 
     connectChannelInstanceAction(orgSlug, instanceId)
-      .then((result) => {
-        setQrCode(result.qrCode);
-        setStatus(mapConnectUiStatus(result.status, Boolean(result.qrCode)));
+      .then(async (result) => {
+        let qr = result.qrCode;
+        if (!qr) {
+          const fromDb = await getChannelInstanceQrAction(orgSlug, instanceId);
+          qr = fromDb.qrCode;
+        }
+        setQrCode(qr);
+        setStatus(mapConnectUiStatus(result.status, Boolean(qr)));
         setLoading(false);
       })
       .catch((err) => {

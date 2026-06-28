@@ -4,6 +4,15 @@ import {
   deleteChannelInstanceAction,
   syncChannelInstanceStatusAction,
 } from '@/app/[orgSlug]/channels/actions';
+import {
+  ListTable,
+  ListTableBody,
+  ListTableCell,
+  ListTableHeadCell,
+  ListTableHeader,
+  ListTableRow,
+  ListTableWrap,
+} from '@/components/layout/list-table';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -14,10 +23,12 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { formatPhone } from '@/lib/format/phone';
+import { LUCIDE_STROKE_THIN } from '@/lib/ui/lucide';
+import { cn } from '@/lib/utils';
 import type { ChannelInstance } from '@prisma/client';
-import { RefreshCw, Trash2 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
-import { useState, useTransition } from 'react';
+import { RefreshCw, Smartphone, Trash2 } from 'lucide-react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useEffect, useState, useTransition } from 'react';
 import { InstanceStatusBadge } from './instance-status-badge';
 import { QrCodeModal } from './qr-code-modal';
 
@@ -26,13 +37,36 @@ interface Props {
   instances: ChannelInstance[];
 }
 
+function connectButtonLabel(instance: ChannelInstance): string {
+  const neverConnected =
+    !instance.lastConnectedAt && !instance.phoneNumber;
+  if (
+    neverConnected ||
+    instance.status === 'PENDING' ||
+    instance.status === 'QR_REQUIRED'
+  ) {
+    return 'Conectar';
+  }
+  return 'Reconectar';
+}
+
 export function ChannelsTable({ orgSlug, instances }: Props) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [qrInstanceId, setQrInstanceId] = useState<string | null>(null);
   const [deleteInstance, setDeleteInstance] = useState<ChannelInstance | null>(
     null,
   );
   const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    const targetId = searchParams.get('connect');
+    if (!targetId) return;
+    if (!instances.some((i) => i.id === targetId)) return;
+
+    setQrInstanceId(targetId);
+    router.replace(`/${orgSlug}/channels`, { scroll: false });
+  }, [searchParams, instances, orgSlug, router]);
 
   const handleConnect = (instanceId: string) => {
     setQrInstanceId(instanceId);
@@ -67,83 +101,93 @@ export function ChannelsTable({ orgSlug, instances }: Props) {
   return (
     <>
       {hasOffline ? (
-        <p className="mb-4 rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900/50 dark:text-zinc-400">
+        <p className="border-b border-border/50 bg-muted/10 px-4 py-2.5 text-xs text-muted-foreground md:px-5">
           Canais offline precisam ser reconectados para receber mensagens.
         </p>
       ) : null}
-      <div className="overflow-x-auto">
-        <table className="w-full text-left text-sm">
-          <thead>
-            <tr className="border-b border-zinc-200 text-xs font-medium uppercase text-zinc-500 dark:border-zinc-800">
-              <th className="px-4 py-3">Nome</th>
-              <th className="px-4 py-3">Tipo</th>
-              <th className="px-4 py-3">Dispositivo</th>
-              <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3 text-right">Ações</th>
-            </tr>
-          </thead>
-          <tbody>
+
+      <ListTableWrap>
+        <ListTable>
+          <ListTableHeader>
+            <ListTableHeadCell>Nome</ListTableHeadCell>
+            <ListTableHeadCell>Tipo</ListTableHeadCell>
+            <ListTableHeadCell>Dispositivo</ListTableHeadCell>
+            <ListTableHeadCell>Status</ListTableHeadCell>
+            <ListTableHeadCell className="text-right">Ações</ListTableHeadCell>
+          </ListTableHeader>
+          <ListTableBody>
             {instances.map((instance) => (
-              <tr
-                key={instance.id}
-                className="border-b border-zinc-100 hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-900/50"
-              >
-                <td className="px-4 py-3">
+              <ListTableRow key={instance.id}>
+                <ListTableCell>
                   <div className="flex items-center gap-2">
-                    <span className="text-lg">📱</span>
+                    <Smartphone
+                      className="size-4 shrink-0 text-muted-foreground"
+                      strokeWidth={LUCIDE_STROKE_THIN}
+                      aria-hidden
+                    />
                     <span className="font-medium">{instance.name}</span>
                   </div>
-                </td>
-                <td className="px-4 py-3 text-zinc-600 dark:text-zinc-400">
+                </ListTableCell>
+                <ListTableCell className="text-muted-foreground">
                   WhatsApp Starter
-                </td>
-                <td className="px-4 py-3 text-zinc-600 dark:text-zinc-400">
+                </ListTableCell>
+                <ListTableCell className="text-muted-foreground">
                   {instance.phoneNumber
                     ? formatPhone(instance.phoneNumber) || instance.phoneNumber
                     : '—'}
-                </td>
-                <td className="px-4 py-3">
+                </ListTableCell>
+                <ListTableCell>
                   <InstanceStatusBadge status={instance.status} />
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex items-center justify-end gap-2">
+                </ListTableCell>
+                <ListTableCell className="text-right">
+                  <div className="flex items-center justify-end gap-1">
                     {instance.status !== 'CONNECTED' ? (
-                      <button
+                      <Button
                         type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-8 rounded-full px-3 text-xs"
                         onClick={() => handleConnect(instance.id)}
                         disabled={isPending}
-                        className="rounded-md border border-zinc-300 px-2 py-1 text-xs text-zinc-700 hover:bg-zinc-100 disabled:opacity-50 dark:border-zinc-600 dark:text-zinc-300 dark:hover:bg-zinc-800"
                       >
-                        Reconectar
-                      </button>
+                        {connectButtonLabel(instance)}
+                      </Button>
                     ) : null}
-                    <button
+                    <Button
                       type="button"
+                      variant="ghost"
+                      size="icon-sm"
                       onClick={() => handleSync(instance.id)}
                       disabled={isPending}
-                      className="rounded-md p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 disabled:opacity-50 dark:hover:bg-zinc-800"
                       title="Sincronizar status"
+                      className="text-muted-foreground"
                     >
                       <RefreshCw
-                        className={`h-4 w-4 ${isPending ? 'animate-spin' : ''}`}
+                        className={cn('size-4', isPending && 'animate-spin')}
+                        strokeWidth={LUCIDE_STROKE_THIN}
                       />
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       type="button"
+                      variant="ghost"
+                      size="icon-sm"
                       onClick={() => setDeleteInstance(instance)}
                       disabled={isPending}
-                      className="rounded-md p-1 text-zinc-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-50 dark:hover:bg-red-950/40"
                       title="Remover"
+                      className="text-muted-foreground hover:text-destructive"
                     >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                      <Trash2
+                        className="size-4"
+                        strokeWidth={LUCIDE_STROKE_THIN}
+                      />
+                    </Button>
                   </div>
-                </td>
-              </tr>
+                </ListTableCell>
+              </ListTableRow>
             ))}
-          </tbody>
-        </table>
-      </div>
+          </ListTableBody>
+        </ListTable>
+      </ListTableWrap>
 
       {qrInstanceId ? (
         <QrCodeModal
@@ -151,7 +195,10 @@ export function ChannelsTable({ orgSlug, instances }: Props) {
           instanceId={qrInstanceId}
           open={Boolean(qrInstanceId)}
           onOpenChange={(open) => {
-            if (!open) setQrInstanceId(null);
+            if (!open) {
+              setQrInstanceId(null);
+              router.refresh();
+            }
           }}
         />
       ) : null}

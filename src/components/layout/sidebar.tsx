@@ -7,6 +7,7 @@ import {
   Car,
   ChevronsLeft,
   ChevronsRight,
+  CircleDollarSign,
   Contact,
   Kanban,
   LayoutDashboard,
@@ -34,6 +35,7 @@ const navIcons = {
   Smartphone,
   Calendar,
   BarChart3,
+  CircleDollarSign,
   Settings,
 } as const;
 
@@ -53,6 +55,12 @@ function buildItems(orgSlug: string): NavDef[] {
     { href: `${p}/leads`, icon: 'Users', label: 'Leads' },
     { href: `${p}/customers`, icon: 'Contact', label: 'Clientes' },
     { href: `${p}/sales`, icon: 'ShoppingCart', label: 'Vendas' },
+    {
+      href: `${p}/financial`,
+      icon: 'CircleDollarSign',
+      label: 'Financeiro',
+      roles: ['OWNER', 'ADMIN', 'FINANCE'],
+    },
     { href: `${p}/channels`, icon: 'Smartphone', label: 'Canais' },
     { href: `${p}/pipeline`, icon: 'Kanban', label: 'Funil' },
     {

@@ -71,6 +71,38 @@ export async function findOrCreateConversation(
     return existing;
   }
 
+  // Mesmo contato em canal antigo/removido → reassocia ao canal que recebeu a mensagem
+  const existingOnOtherChannel = await db.conversation.findFirst({
+    where: {
+      organizationId,
+      externalChatId: params.chatId,
+      deletedAt: null,
+    },
+  });
+
+  if (existingOnOtherChannel) {
+    const data: Prisma.ConversationUpdateInput = {
+      channelInstanceId,
+    };
+    if (
+      params.contactName != null &&
+      params.contactName !== existingOnOtherChannel.contactName
+    ) {
+      data.contactName = params.contactName;
+    }
+    const avatarIn =
+      params.contactAvatar != null && params.contactAvatar.trim() !== ''
+        ? params.contactAvatar.trim()
+        : null;
+    if (avatarIn && avatarIn !== existingOnOtherChannel.contactAvatar) {
+      data.contactAvatar = avatarIn;
+    }
+    return db.conversation.update({
+      where: { id: existingOnOtherChannel.id },
+      data,
+    });
+  }
+
   const phoneNumber = normalizePhone(params.chatId);
   const isGroup = isGroupChat(params.chatId);
 
@@ -124,6 +156,91 @@ export async function findOrCreateConversation(
       status: 'OPEN',
     },
   });
+}
+
+/**
+ * Conversas podem ficar presas em canal removido (INACTIVE). Reassocia a um
+ * canal CONNECTED da mesma org — comum após recriar instância no uazapi.
+ */
+export async function ensureConversationChannelActive(
+  organizationId: string,
+  conversationId: string,
+): Promise<Conversation> {
+  const db = getTenantPrisma(organizationId);
+  const conversation = await db.conversation.findFirst({
+    where: { id: conversationId, deletedAt: null },
+    include: { channelInstance: true },
+  });
+  if (!conversation) throw new Error('Conversation not found');
+
+  const channel = conversation.channelInstance;
+  const channelRemoved =
+    channel.deletedAt !== null || channel.status === 'INACTIVE';
+
+  if (!channelRemoved && channel.status === 'CONNECTED') {
+    return conversation;
+  }
+
+  // Canal ativo porém offline — usuário deve reconectar, não migrar
+  if (!channelRemoved && channel.status !== 'CONNECTED') {
+    return conversation;
+  }
+
+  const replacement = await db.channelInstance.findFirst({
+    where: {
+      organizationId,
+      deletedAt: null,
+      status: 'CONNECTED',
+    },
+    orderBy: { lastConnectedAt: 'desc' },
+  });
+
+  if (!replacement || replacement.id === channel.id) {
+    return conversation;
+  }
+
+  return db.conversation.update({
+    where: { id: conversationId },
+    data: { channelInstanceId: replacement.id },
+  });
+}
+
+/** Reassocia conversas órfãs (canal removido) ao canal CONNECTED ativo. */
+export async function migrateConversationsFromRemovedChannels(
+  organizationId: string,
+): Promise<number> {
+  const db = getTenantPrisma(organizationId);
+
+  const replacement = await db.channelInstance.findFirst({
+    where: {
+      organizationId,
+      deletedAt: null,
+      status: 'CONNECTED',
+    },
+    orderBy: { lastConnectedAt: 'desc' },
+  });
+
+  if (!replacement) return 0;
+
+  const removedChannels = await db.channelInstance.findMany({
+    where: {
+      organizationId,
+      OR: [{ deletedAt: { not: null } }, { status: 'INACTIVE' }],
+    },
+    select: { id: true },
+  });
+
+  if (removedChannels.length === 0) return 0;
+
+  const result = await db.conversation.updateMany({
+    where: {
+      channelInstanceId: { in: removedChannels.map((c) => c.id) },
+      deletedAt: null,
+    },
+    data: { channelInstanceId: replacement.id },
+  });
+
+  return result.count;
 }
 
 export async function ingestIncomingMessage(
@@ -360,6 +477,8 @@ export async function sendTextMessage(
 ): Promise<Message> {
   const db = getTenantPrisma(organizationId);
 
+  await ensureConversationChannelActive(organizationId, params.conversationId);
+
   const conversation = await db.conversation.findFirst({
     where: { id: params.conversationId, deletedAt: null },
     include: { channelInstance: true },
@@ -386,7 +505,10 @@ export async function sendTextMessage(
 
   try {
     const token = decrypt(conversation.channelInstance.encryptedToken);
-    const client = getInstanceClient(token);
+    const client = getInstanceClient(
+      token,
+      conversation.channelInstance.baseUrl,
+    );
     const result = await client.sendText({
       number: conversation.externalChatId,
       text: params.text,
@@ -720,6 +842,8 @@ export async function sendMediaMessage(
 ): Promise<Message> {
   const db = getTenantPrisma(organizationId);
 
+  await ensureConversationChannelActive(organizationId, conversationId);
+
   const conversation = await db.conversation.findFirst({
     where: { id: conversationId, deletedAt: null },
     include: { channelInstance: true },
@@ -771,7 +895,10 @@ export async function sendMediaMessage(
 
   try {
     const token = decrypt(conversation.channelInstance.encryptedToken);
-    const client = getInstanceClient(token);
+    const client = getInstanceClient(
+      token,
+      conversation.channelInstance.baseUrl,
+    );
     const phone = conversation.externalChatId;
 
     let response: Record<string, unknown>;

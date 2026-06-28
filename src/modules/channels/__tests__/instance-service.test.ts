@@ -16,6 +16,7 @@ const mockSetWebhook = vi.fn();
 vi.mock('../providers/uazapi/client', () => ({
   getAdminClient: vi.fn(() => ({
     createInstance: mockCreateInstance,
+    listAllInstances: vi.fn().mockResolvedValue([]),
   })),
   getInstanceClient: vi.fn(() => ({
     disconnect: mockDisconnect,

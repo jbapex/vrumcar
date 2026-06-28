@@ -4,8 +4,17 @@ import { syncAllChannelInstancesStatus } from '@/modules/channels/instance-servi
 import { CreateChannelDialog } from '@/components/channels/create-channel-dialog';
 import { ChannelsTable } from '@/components/channels/channels-table';
 import { DataListCard } from '@/components/layout/data-list-card';
+import {
+  ListPageEmpty,
+  listPageSectionClass,
+  listPageToolbarClass,
+  listPageToolbarFieldsClass,
+} from '@/components/layout/list-table';
 import { PageHeader } from '@/components/layout/page-header';
+import { LUCIDE_STROKE_THIN } from '@/lib/ui/lucide';
+import { Smartphone } from 'lucide-react';
 import { notFound, redirect } from 'next/navigation';
+import { Suspense } from 'react';
 
 export default async function ChannelsPage({
   params,
@@ -39,7 +48,7 @@ export default async function ChannelsPage({
   const canAdd = used < max;
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className={listPageSectionClass}>
       <PageHeader
         breadcrumbs={
           <>
@@ -54,23 +63,40 @@ export default async function ChannelsPage({
         {canAdd ? <CreateChannelDialog orgSlug={orgSlug} /> : null}
       </PageHeader>
 
-      <DataListCard className="p-6">
-        <p className="mb-6 text-center text-sm text-muted-foreground">
-          {used} de {max} instâncias em uso
-          {!canAdd ? (
-            <span className="mt-1 block text-xs">
-              Limite atingido — entre em contato para ampliar seu plano.
-            </span>
-          ) : null}
-        </p>
+      <DataListCard>
+        <div className={listPageToolbarClass}>
+          <div className={listPageToolbarFieldsClass}>
+            <p className="text-xs text-muted-foreground md:pb-0.5">
+              {used} de {max} instâncias em uso
+              {!canAdd ? (
+                <span className="text-muted-foreground/80">
+                  {' '}
+                  — limite atingido; entre em contato para ampliar seu plano.
+                </span>
+              ) : null}
+            </p>
+          </div>
+        </div>
 
         {instances.length === 0 ? (
-          <div className="text-muted-foreground rounded-2xl border border-dashed border-border/70 bg-muted/10 px-6 py-16 text-center text-sm">
-            Nenhum canal de WhatsApp conectado. Use &quot;Conectar WhatsApp&quot;
-            pra começar.
+          <div className="p-4">
+            <ListPageEmpty>
+              <Smartphone
+                className="size-12 opacity-50"
+                strokeWidth={LUCIDE_STROKE_THIN}
+                aria-hidden
+              />
+              <p className="max-w-md text-center text-sm">
+                Nenhum canal de WhatsApp conectado. Use &quot;Conectar
+                WhatsApp&quot; para vincular um número e começar a receber
+                mensagens.
+              </p>
+            </ListPageEmpty>
           </div>
         ) : (
-          <ChannelsTable orgSlug={orgSlug} instances={instances} />
+          <Suspense fallback={null}>
+            <ChannelsTable orgSlug={orgSlug} instances={instances} />
+          </Suspense>
         )}
       </DataListCard>
     </div>

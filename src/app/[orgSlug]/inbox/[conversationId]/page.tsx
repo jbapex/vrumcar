@@ -5,6 +5,8 @@ import {
   listConversations,
   listMessages,
   listTeamMembers,
+  ensureConversationChannelActive,
+  migrateConversationsFromRemovedChannels,
 } from '@/modules/channels/conversation-service';
 import { syncChannelInstanceStatus } from '@/modules/channels/instance-service';
 import type { ConversationListItem } from '@/components/inbox/conversation-list';
@@ -78,6 +80,8 @@ export default async function InboxConversationPage({
   const userRole = membership.role;
   const userId = session.user.id;
 
+  await migrateConversationsFromRemovedChannels(org.id);
+
   const db = getTenantPrisma(org.id);
   const conversation = await db.conversation.findFirst({
     where: { id: conversationId, deletedAt: null },
@@ -103,11 +107,37 @@ export default async function InboxConversationPage({
     notFound();
   }
 
-  let channelInstance = conversation.channelInstance;
+  await ensureConversationChannelActive(org.id, conversationId);
+
+  const refreshed = await db.conversation.findFirst({
+    where: { id: conversationId, deletedAt: null },
+    include: {
+      lead: {
+        select: {
+          id: true,
+          name: true,
+          phone: true,
+          email: true,
+          cpf: true,
+          status: true,
+          notes: true,
+          createdAt: true,
+        },
+      },
+      channelInstance: { select: { id: true, name: true, status: true } },
+      assignedTo: { select: { id: true, name: true, email: true } },
+    },
+  });
+
+  if (!refreshed) {
+    notFound();
+  }
+
+  let channelInstance = refreshed.channelInstance;
   try {
     const synced = await syncChannelInstanceStatus(
       org.id,
-      conversation.channelInstanceId,
+      refreshed.channelInstanceId,
     );
     channelInstance = {
       id: synced.id,
@@ -240,18 +270,18 @@ export default async function InboxConversationPage({
           <ChatView
             orgSlug={orgSlug}
             conversation={{
-              id: conversation.id,
-              contactName: conversation.contactName,
-              contactAvatar: conversation.contactAvatar,
-              phoneNumber: conversation.phoneNumber,
-              leadId: conversation.leadId,
-              lead: conversation.lead,
+              id: refreshed.id,
+              contactName: refreshed.contactName,
+              contactAvatar: refreshed.contactAvatar,
+              phoneNumber: refreshed.phoneNumber,
+              leadId: refreshed.leadId,
+              lead: refreshed.lead,
               channelInstance,
-              createdAt: conversation.createdAt,
-              lastMessageAt: conversation.lastMessageAt,
-              assignedToId: conversation.assignedToId,
-              assignedTo: conversation.assignedTo,
-              status: conversation.status,
+              createdAt: refreshed.createdAt,
+              lastMessageAt: refreshed.lastMessageAt,
+              assignedToId: refreshed.assignedToId,
+              assignedTo: refreshed.assignedTo,
+              status: refreshed.status,
             }}
             messages={messages}
             teamMembers={teamMembers}

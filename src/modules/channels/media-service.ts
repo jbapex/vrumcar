@@ -60,7 +60,7 @@ export async function downloadAndCacheMedia(
   }
 
   const token = decrypt(channelInstance.encryptedToken);
-  const client = getInstanceClient(token);
+  const client = getInstanceClient(token, channelInstance.baseUrl);
 
   let downloadResponse;
   try {

@@ -4,6 +4,7 @@ import type {
   UazapiDownloadMediaResponse,
   UazapiInstanceCreatePayload,
   UazapiInstanceCreateResponse,
+  UazapiInstanceListItem,
   UazapiSendTextPayload,
   UazapiSendTextResponse,
   UazapiStatusResponse,
@@ -41,6 +42,7 @@ export class UazapiClient {
         method,
         headers,
         body: body ? JSON.stringify(body) : undefined,
+        signal: AbortSignal.timeout(15_000),
       });
     } catch (err) {
       throw new UazapiError(
@@ -66,6 +68,13 @@ export class UazapiClient {
     }
 
     return parsed as T;
+  }
+
+  async listAllInstances(): Promise<UazapiInstanceListItem[]> {
+    if (this.tokenType !== 'admin') {
+      throw new UazapiError('listAllInstances requires admin token', 400);
+    }
+    return this.request<UazapiInstanceListItem[]>('GET', '/instance/all');
   }
 
   async createInstance(
@@ -181,8 +190,11 @@ export function getAdminClient(): UazapiClient {
   return new UazapiClient(baseUrl, adminToken, 'admin');
 }
 
-export function getInstanceClient(token: string): UazapiClient {
-  const baseUrl = process.env.UAZAPI_BASE_URL;
+export function getInstanceClient(
+  token: string,
+  baseUrlOverride?: string,
+): UazapiClient {
+  const baseUrl = baseUrlOverride ?? process.env.UAZAPI_BASE_URL;
   if (!baseUrl) {
     throw new Error('UAZAPI_BASE_URL not configured in .env');
   }

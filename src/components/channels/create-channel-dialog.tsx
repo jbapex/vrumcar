@@ -37,9 +37,12 @@ export function CreateChannelDialog({ orgSlug, onCreated }: Props) {
         const result = await createChannelInstanceAction(orgSlug, formData);
         setOpen(false);
         setName('');
-        router.refresh();
         if (result.instanceId && onCreated) {
           onCreated(result.instanceId);
+        } else if (result.instanceId) {
+          router.push(`/${orgSlug}/channels?connect=${result.instanceId}`);
+        } else {
+          router.refresh();
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Erro');

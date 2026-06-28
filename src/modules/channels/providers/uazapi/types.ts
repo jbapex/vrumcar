@@ -19,6 +19,14 @@ export interface UazapiInstanceCreateResponse {
   };
 }
 
+/** Item retornado por GET /instance/all (admin). */
+export interface UazapiInstanceListItem {
+  id: string;
+  token: string;
+  name: string;
+  status: string;
+}
+
 export interface UazapiConnectPayload {
   phone?: string;
 }

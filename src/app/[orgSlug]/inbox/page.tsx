@@ -1,6 +1,6 @@
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { listConversations } from '@/modules/channels/conversation-service';
+import { listConversations, migrateConversationsFromRemovedChannels } from '@/modules/channels/conversation-service';
 import type { ConversationListItem } from '@/components/inbox/conversation-list';
 import { ConversationList } from '@/components/inbox/conversation-list';
 import { ConversationTabs } from '@/components/inbox/conversation-tabs';
@@ -70,6 +70,8 @@ export default async function InboxPage({
   const membership = org.memberships[0]!;
   const userRole = membership.role;
   const userId = session.user.id;
+
+  await migrateConversationsFromRemovedChannels(org.id);
 
   const connectedChannels = await prisma.channelInstance.count({
     where: {
