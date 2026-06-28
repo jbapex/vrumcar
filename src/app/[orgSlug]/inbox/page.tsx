@@ -5,6 +5,7 @@ import type { ConversationListItem } from '@/components/inbox/conversation-list'
 import { ConversationList } from '@/components/inbox/conversation-list';
 import { ConversationTabs } from '@/components/inbox/conversation-tabs';
 import { InboxPoller } from '@/components/inbox/inbox-poller';
+import { NotificationSound } from '@/components/inbox/notification-sound';
 import { buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
@@ -83,6 +84,7 @@ export default async function InboxPage({
     inboxCount,
     attendingCount,
     resolvedCount,
+    inboundCount,
   ] = await Promise.all([
     listConversations(org.id, {
       tab,
@@ -113,6 +115,12 @@ export default async function InboxPage({
       onlyMine,
       pageSize: 1,
     }),
+    prisma.message.count({
+      where: {
+        organizationId: org.id,
+        direction: 'INBOUND',
+      },
+    }),
   ]);
 
   const listItems: ConversationListItem[] = conversationsResult.items.map(
@@ -128,6 +136,7 @@ export default async function InboxPage({
       leadId: c.leadId,
       lead: c.lead,
       assignedTo: c.assignedTo,
+      messages: c.messages,
     }),
   );
 
@@ -187,6 +196,7 @@ export default async function InboxPage({
         <p className="text-center text-sm">Selecione uma conversa</p>
       </main>
       <InboxPoller intervalMs={3000} />
+      <NotificationSound messageCount={inboundCount} />
     </div>
   );
 }

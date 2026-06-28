@@ -6,11 +6,13 @@ import {
   listMessages,
   listTeamMembers,
 } from '@/modules/channels/conversation-service';
+import { syncChannelInstanceStatus } from '@/modules/channels/instance-service';
 import type { ConversationListItem } from '@/components/inbox/conversation-list';
 import { ChatView } from '@/components/inbox/chat-view';
 import { ConversationList } from '@/components/inbox/conversation-list';
 import { ConversationTabs } from '@/components/inbox/conversation-tabs';
 import { InboxPoller } from '@/components/inbox/inbox-poller';
+import { NotificationSound } from '@/components/inbox/notification-sound';
 import { MarkConversationRead } from '@/components/inbox/mark-conversation-read';
 import { buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -102,6 +104,21 @@ export default async function InboxConversationPage({
     notFound();
   }
 
+  let channelInstance = conversation.channelInstance;
+  try {
+    const synced = await syncChannelInstanceStatus(
+      org.id,
+      conversation.channelInstanceId,
+    );
+    channelInstance = {
+      id: synced.id,
+      name: synced.name,
+      status: synced.status,
+    };
+  } catch (err) {
+    console.error('[inbox] Failed to sync channel status:', err);
+  }
+
   const messages = await listMessages(org.id, conversationId, { limit: 50 });
 
   const [
@@ -110,6 +127,7 @@ export default async function InboxConversationPage({
     attendingCount,
     resolvedCount,
     teamMembers,
+    inboundCount,
   ] = await Promise.all([
     listConversations(org.id, {
       tab,
@@ -141,6 +159,12 @@ export default async function InboxConversationPage({
       pageSize: 1,
     }),
     listTeamMembers(org.id),
+    prisma.message.count({
+      where: {
+        organizationId: org.id,
+        direction: 'INBOUND',
+      },
+    }),
   ]);
 
   const listItems: ConversationListItem[] = conversationsResult.items.map(
@@ -156,6 +180,7 @@ export default async function InboxConversationPage({
       leadId: c.leadId,
       lead: c.lead,
       assignedTo: c.assignedTo,
+      messages: c.messages,
     }),
   );
 
@@ -237,7 +262,7 @@ export default async function InboxConversationPage({
               phoneNumber: conversation.phoneNumber,
               leadId: conversation.leadId,
               lead: conversation.lead,
-              channelInstance: conversation.channelInstance,
+              channelInstance,
               createdAt: conversation.createdAt,
               lastMessageAt: conversation.lastMessageAt,
               assignedToId: conversation.assignedToId,
@@ -250,6 +275,7 @@ export default async function InboxConversationPage({
         </main>
       </div>
       <InboxPoller intervalMs={3000} />
+      <NotificationSound messageCount={inboundCount} />
     </>
   );
 }

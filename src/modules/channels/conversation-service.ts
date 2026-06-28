@@ -498,6 +498,15 @@ export async function listConversations(
         lead: { select: { id: true, name: true, status: true } },
         channelInstance: { select: { id: true, name: true, status: true } },
         assignedTo: { select: { id: true, name: true, email: true } },
+        messages: {
+          select: {
+            type: true,
+            text: true,
+            mediaCaption: true,
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+        },
       },
       orderBy: { lastMessageAt: 'desc' },
       skip: (page - 1) * pageSize,

@@ -1,8 +1,8 @@
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { listChannelInstances } from '@/modules/channels/instance-service';
+import { syncAllChannelInstancesStatus } from '@/modules/channels/instance-service';
 import { CreateChannelDialog } from '@/components/channels/create-channel-dialog';
-import { ChannelCard } from '@/components/channels/channel-card';
+import { ChannelsTable } from '@/components/channels/channels-table';
 import { DataListCard } from '@/components/layout/data-list-card';
 import { PageHeader } from '@/components/layout/page-header';
 import { notFound, redirect } from 'next/navigation';
@@ -33,7 +33,7 @@ export default async function ChannelsPage({
     notFound();
   }
 
-  const instances = await listChannelInstances(org.id);
+  const instances = await syncAllChannelInstancesStatus(org.id);
   const used = instances.length;
   const max = org.maxChannelInstances;
   const canAdd = used < max;
@@ -70,11 +70,7 @@ export default async function ChannelsPage({
             pra começar.
           </div>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-1">
-            {instances.map((inst) => (
-              <ChannelCard key={inst.id} orgSlug={orgSlug} instance={inst} />
-            ))}
-          </div>
+          <ChannelsTable orgSlug={orgSlug} instances={instances} />
         )}
       </DataListCard>
     </div>

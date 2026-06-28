@@ -55,6 +55,7 @@ interface ChatViewProps {
     channelInstance: {
       id: string;
       name: string;
+      status: string;
     };
     createdAt: Date | string;
     lastMessageAt: Date | string | null;
@@ -77,6 +78,40 @@ function getMessageCopyText(msg: Message): string | null {
   const cap = msg.mediaCaption?.trim();
   if (cap) return msg.mediaCaption ?? null;
   return null;
+}
+
+function formatDateSeparator(date: Date | string): string {
+  const d = typeof date === 'string' ? new Date(date) : date;
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yesterday = new Date(today.getTime() - 86400000);
+  const msgDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+
+  if (msgDate.getTime() === today.getTime()) return 'Hoje';
+  if (msgDate.getTime() === yesterday.getTime()) return 'Ontem';
+
+  const diffDays = Math.floor(
+    (today.getTime() - msgDate.getTime()) / 86400000,
+  );
+  if (diffDays < 7) {
+    return d.toLocaleDateString('pt-BR', { weekday: 'long' });
+  }
+
+  return d.toLocaleDateString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
+}
+
+function isSameDay(a: Date | string, b: Date | string): boolean {
+  const da = typeof a === 'string' ? new Date(a) : a;
+  const db = typeof b === 'string' ? new Date(b) : b;
+  return (
+    da.getFullYear() === db.getFullYear() &&
+    da.getMonth() === db.getMonth() &&
+    da.getDate() === db.getDate()
+  );
 }
 
 function MessageStatusIcon({ status }: { status: Message['status'] }) {
@@ -282,13 +317,23 @@ export function ChatView({
                 Nenhuma mensagem ainda.
               </p>
             ) : null}
-            {messagesAsc.map((msg) => {
+            {messagesAsc.map((msg, idx) => {
+              const prevMsg = idx > 0 ? messagesAsc[idx - 1] : null;
+              const showDateSep =
+                !prevMsg || !isSameDay(prevMsg.createdAt, msg.createdAt);
               const isOutbound = msg.direction === 'OUTBOUND';
               return (
-                <div
-                  key={msg.id}
-                  className={`group relative flex ${isOutbound ? 'justify-end' : 'justify-start'}`}
-                >
+                <div key={msg.id}>
+                  {showDateSep ? (
+                    <div className="my-4 flex items-center justify-center">
+                      <span className="rounded-full bg-zinc-200 px-3 py-1 text-xs text-zinc-600 capitalize dark:bg-zinc-700 dark:text-zinc-300">
+                        {formatDateSeparator(msg.createdAt)}
+                      </span>
+                    </div>
+                  ) : null}
+                  <div
+                    className={`group relative flex ${isOutbound ? 'justify-end' : 'justify-start'}`}
+                  >
                   <div className="relative inline-block max-w-[70%]">
                     <div
                       className={`rounded-lg px-3 py-2 ${
@@ -377,12 +422,33 @@ export function ChatView({
                       />
                     </div>
                   </div>
+                  </div>
                 </div>
               );
             })}
             <div ref={messagesEndRef} />
           </div>
         </div>
+
+        {conversation.channelInstance.status !== 'CONNECTED' ? (
+          <div className="mx-4 mb-2 flex items-center gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 dark:border-red-900 dark:bg-red-950/40">
+            <span className="text-lg">⚠️</span>
+            <div className="flex-1">
+              <p className="text-sm font-medium text-red-800 dark:text-red-200">
+                O canal {conversation.channelInstance.name} está desconectado.
+              </p>
+              <p className="text-xs text-red-600 dark:text-red-400">
+                Mensagens não serão enviadas até reconectar.
+              </p>
+            </div>
+            <Link
+              href={`/${orgSlug}/channels`}
+              className="shrink-0 rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700"
+            >
+              Reconectar
+            </Link>
+          </div>
+        ) : null}
 
         <MediaSendProvider
           orgSlug={orgSlug}

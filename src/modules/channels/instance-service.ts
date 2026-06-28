@@ -171,12 +171,13 @@ export async function syncChannelInstanceStatus(
   try {
     const result = await client.status();
 
-    let newStatus: ChannelInstance['status'] = instance.status;
+    let newStatus: ChannelInstance['status'];
     if (result.status.connected && result.status.loggedIn) {
       newStatus = 'CONNECTED';
     } else if (result.instance.status === 'connecting') {
       newStatus = result.instance.qrcode ? 'QR_REQUIRED' : 'CONNECTING';
-    } else if (result.instance.status === 'disconnected') {
+    } else {
+      // Qualquer estado que não seja conectado de fato → offline
       newStatus = 'DISCONNECTED';
     }
 
@@ -191,6 +192,7 @@ export async function syncChannelInstanceStatus(
           newStatus === 'CONNECTED' && instance.status !== 'CONNECTED'
             ? new Date()
             : instance.lastConnectedAt,
+        lastError: null,
       },
     });
 
@@ -198,6 +200,18 @@ export async function syncChannelInstanceStatus(
   } catch (err) {
     const message =
       err instanceof UazapiError ? err.message : 'Unknown error';
+    const isInvalidToken = message.toLowerCase().includes('invalid token');
+
+    if (isInvalidToken) {
+      return db.channelInstance.update({
+        where: { id: channelInstanceId },
+        data: {
+          status: 'DISCONNECTED',
+          lastError: 'Token inválido — clique em Reconectar para gerar novo QR',
+        },
+      });
+    }
+
     throw new ChannelInstanceError(`Erro ao sincronizar status: ${message}`);
   }
 }
@@ -236,4 +250,29 @@ export async function listChannelInstances(
     where: { deletedAt: null },
     orderBy: { createdAt: 'desc' },
   });
+}
+
+/**
+ * Sincroniza status de todas as instâncias ativas com o uazapi.
+ * Falhas individuais não impedem as demais.
+ */
+export async function syncAllChannelInstancesStatus(
+  organizationId: string,
+): Promise<ChannelInstance[]> {
+  const instances = await listChannelInstances(organizationId);
+  const synced = await Promise.all(
+    instances.map(async (inst) => {
+      if (!inst.encryptedToken) return inst;
+      try {
+        return await syncChannelInstanceStatus(organizationId, inst.id);
+      } catch (err) {
+        console.error(
+          `[channels] Failed to sync instance ${inst.id}:`,
+          err instanceof Error ? err.message : err,
+        );
+        return inst;
+      }
+    }),
+  );
+  return synced;
 }

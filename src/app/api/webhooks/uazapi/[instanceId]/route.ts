@@ -4,6 +4,7 @@ import {
   ingestIncomingMessage,
   updateMessageStatus,
 } from '@/modules/channels/conversation-service';
+import { syncChannelInstanceStatus } from '@/modules/channels/instance-service';
 import type {
   UazapiIncomingWebhook,
   UazapiMessageData,
@@ -131,14 +132,17 @@ export async function POST(
         }
       }
     } else if (eventType === 'connection') {
-      await prisma.channelInstance.update({
-        where: { id: instance.id },
-        data: {
-          status: 'CONNECTED',
-          lastConnectedAt: new Date(),
-          lastQrCode: null,
-        },
-      });
+      try {
+        await syncChannelInstanceStatus(
+          instance.organizationId,
+          instance.id,
+        );
+      } catch (err) {
+        console.error(
+          '[uazapi-webhook] Failed to sync status on connection event:',
+          err,
+        );
+      }
     }
 
     return NextResponse.json({ ok: true });

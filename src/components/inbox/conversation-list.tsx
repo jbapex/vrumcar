@@ -3,7 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { formatRelativeTime } from '@/lib/format/relative-time';
 import { formatPhone } from '@/lib/format/phone';
 import { cn } from '@/lib/utils';
-import type { ConversationStatus, LeadStatus } from '@prisma/client';
+import type { ConversationStatus, LeadStatus, MessageType } from '@prisma/client';
 import { Users } from 'lucide-react';
 import Link from 'next/link';
 
@@ -19,7 +19,29 @@ export type ConversationListItem = {
   leadId: string | null;
   lead: { id: string; name: string; status: LeadStatus } | null;
   assignedTo: { id: string; name: string | null; email: string } | null;
+  messages?: Array<{
+    type: MessageType;
+    text: string | null;
+    mediaCaption: string | null;
+  }>;
 };
+
+function getMessagePreview(conversation: ConversationListItem): string {
+  const lastMsg = conversation.messages?.[0];
+  if (lastMsg) {
+    if (lastMsg.type === 'TEXT') return lastMsg.text ?? '';
+    if (lastMsg.type === 'IMAGE')
+      return `📷 ${lastMsg.mediaCaption ?? 'Foto'}`;
+    if (lastMsg.type === 'AUDIO') return '🎤 Áudio';
+    if (lastMsg.type === 'VIDEO') return '🎥 Vídeo';
+    if (lastMsg.type === 'DOCUMENT') return '📎 Documento';
+    if (lastMsg.type === 'STICKER') return '🏷️ Figurinha';
+    if (lastMsg.type === 'LOCATION') return '📍 Localização';
+    if (lastMsg.type === 'CONTACT') return '👤 Contato';
+    return lastMsg.text ?? '';
+  }
+  return conversation.lastMessagePreview ?? 'Sem mensagens';
+}
 
 interface Props {
   orgSlug: string;
@@ -48,7 +70,7 @@ export function ConversationList({
         const active = c.id === activeConversationId;
         const title =
           c.contactName?.trim() || formatPhone(c.phoneNumber) || c.phoneNumber;
-        const preview = c.lastMessagePreview ?? 'Sem mensagens';
+        const preview = getMessagePreview(c);
         const time = formatRelativeTime(c.lastMessageAt);
 
         return (
