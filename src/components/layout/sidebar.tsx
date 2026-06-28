@@ -61,6 +61,7 @@ function buildItems(orgSlug: string): NavDef[] {
       label: 'Financeiro',
       roles: ['OWNER', 'ADMIN', 'FINANCE'],
     },
+    { href: `${p}/reports`, icon: 'BarChart3', label: 'Relatórios' },
     { href: `${p}/channels`, icon: 'Smartphone', label: 'Canais' },
     { href: `${p}/pipeline`, icon: 'Kanban', label: 'Funil' },
     {
@@ -70,7 +71,6 @@ function buildItems(orgSlug: string): NavDef[] {
       iconClassName: 'text-emerald-400',
     },
     { href: `${p}/calendar`, icon: 'Calendar', label: 'Agenda' },
-    { href: `${p}/reports`, icon: 'BarChart3', label: 'Relatórios' },
     {
       href: `${p}/settings`,
       icon: 'Settings',
