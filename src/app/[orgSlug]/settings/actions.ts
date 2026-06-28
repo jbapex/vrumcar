@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { nanoid } from 'nanoid';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { ensureBucket, uploadBuffer } from '@/lib/storage/upload';
@@ -120,6 +121,109 @@ export async function uploadOrgLogoAction(
   });
 
   revalidatePath(`/${orgSlug}/settings`);
+}
+
+export async function createInvitationAction(
+  orgSlug: string,
+  data: { email: string; role: string },
+) {
+  const { org, userId } = await requireAdminAccess(orgSlug);
+
+  const email = data.email.trim().toLowerCase();
+  if (!email || !email.includes('@')) {
+    throw new Error('Email inválido');
+  }
+
+  const validRoles = ['SALES', 'MANAGER', 'ADMIN', 'FINANCE', 'VIEWER'];
+  if (!validRoles.includes(data.role)) {
+    throw new Error('Cargo inválido');
+  }
+
+  const existingUser = await prisma.user.findUnique({
+    where: { email },
+  });
+  if (existingUser) {
+    const existingMembership = await prisma.membership.findFirst({
+      where: {
+        organizationId: org.id,
+        userId: existingUser.id,
+        isActive: true,
+      },
+    });
+    if (existingMembership) {
+      throw new Error('Este email já é membro da organização');
+    }
+  }
+
+  const existingInvite = await prisma.invitation.findFirst({
+    where: {
+      organizationId: org.id,
+      email,
+      acceptedAt: null,
+      expiresAt: { gt: new Date() },
+    },
+  });
+  if (existingInvite) {
+    throw new Error('Já existe um convite pendente para este email');
+  }
+
+  const invitation = await prisma.invitation.create({
+    data: {
+      organizationId: org.id,
+      email,
+      role: data.role as 'SALES' | 'MANAGER' | 'ADMIN' | 'FINANCE' | 'VIEWER',
+      invitedById: userId,
+      token: nanoid(32),
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    },
+  });
+
+  revalidatePath(`/${orgSlug}/settings/team`);
+
+  return { token: invitation.token };
+}
+
+export async function listPendingInvitationsAction(orgSlug: string) {
+  const { org } = await requireAdminAccess(orgSlug);
+
+  const invitations = await prisma.invitation.findMany({
+    where: {
+      organizationId: org.id,
+      acceptedAt: null,
+      expiresAt: { gt: new Date() },
+    },
+    include: {
+      invitedBy: { select: { name: true, email: true } },
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  return invitations.map((inv) => ({
+    id: inv.id,
+    email: inv.email,
+    role: inv.role,
+    token: inv.token,
+    expiresAt: inv.expiresAt.toISOString(),
+    invitedBy: inv.invitedBy.name ?? inv.invitedBy.email,
+    createdAt: inv.createdAt.toISOString(),
+  }));
+}
+
+export async function cancelInvitationAction(
+  orgSlug: string,
+  invitationId: string,
+) {
+  const { org } = await requireAdminAccess(orgSlug);
+
+  await prisma.invitation.deleteMany({
+    where: {
+      id: invitationId,
+      organizationId: org.id,
+      acceptedAt: null,
+    },
+  });
+
+  revalidatePath(`/${orgSlug}/settings/team`);
 }
 
 export async function listMembersAction(orgSlug: string) {

@@ -1,7 +1,9 @@
-import { notFound } from 'next/navigation';
+import { InviteMemberDialog } from '@/components/settings/invite-member-dialog';
+import { PendingInvitations } from '@/components/settings/pending-invitations';
 import { TeamTable } from '@/components/settings/team-table';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { notFound } from 'next/navigation';
 
 interface Props {
   params: Promise<{ orgSlug: string }>;
@@ -43,6 +45,28 @@ export default async function TeamPage({ params }: Props) {
     joinedAt: m.createdAt.toISOString(),
   }));
 
+  const pendingInvitations = await prisma.invitation.findMany({
+    where: {
+      organizationId: org.id,
+      acceptedAt: null,
+      expiresAt: { gt: new Date() },
+    },
+    include: {
+      invitedBy: { select: { name: true, email: true } },
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  const invitations = pendingInvitations.map((inv) => ({
+    id: inv.id,
+    email: inv.email,
+    role: inv.role,
+    token: inv.token,
+    expiresAt: inv.expiresAt.toISOString(),
+    invitedBy: inv.invitedBy.name ?? inv.invitedBy.email,
+    createdAt: inv.createdAt.toISOString(),
+  }));
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -53,7 +77,10 @@ export default async function TeamPage({ params }: Props) {
             {members.length === 1 ? 'membro' : 'membros'}
           </p>
         </div>
+        <InviteMemberDialog orgSlug={orgSlug} />
       </div>
+
+      <PendingInvitations invitations={invitations} orgSlug={orgSlug} />
 
       <TeamTable
         members={members}
