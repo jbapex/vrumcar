@@ -159,7 +159,7 @@ export async function convertLeadToCustomer(
       email: extra.email ?? lead.email,
       cpfCnpj: extra.cpfCnpj ?? lead.cpf,
       rg: extra.rg,
-      birthDate: extra.birthDate,
+      birthDate: extra.birthDate ?? lead.birthDate,
       phoneSecondary: extra.phoneSecondary,
       addressStreet: extra.addressStreet,
       addressNumber: extra.addressNumber,

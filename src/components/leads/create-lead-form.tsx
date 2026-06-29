@@ -153,16 +153,22 @@ export function CreateLeadForm({ orgSlug, users, vehicles }: Props) {
               />
             </div>
           </div>
-          <div>
-            <Label htmlFor="cpf">CPF</Label>
-            <Input
-              id="cpf"
-              name="cpf"
-              value={cpf}
-              onChange={(e) => setCpf(e.target.value)}
-              onBlur={checkDupes}
-              placeholder="Só dígitos"
-            />
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div>
+              <Label htmlFor="cpf">CPF</Label>
+              <Input
+                id="cpf"
+                name="cpf"
+                value={cpf}
+                onChange={(e) => setCpf(e.target.value)}
+                onBlur={checkDupes}
+                placeholder="Só dígitos"
+              />
+            </div>
+            <div>
+              <Label htmlFor="birthDate">Data de nascimento</Label>
+              <Input id="birthDate" name="birthDate" type="date" />
+            </div>
           </div>
         </CardContent>
       </Card>

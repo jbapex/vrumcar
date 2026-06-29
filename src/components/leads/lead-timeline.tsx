@@ -1,6 +1,8 @@
 'use client';
 
 import type { LeadInteraction, LeadInteractionType } from '@prisma/client';
+import { MessageCircle } from 'lucide-react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { addInteractionAction } from '@/app/[orgSlug]/leads/actions';
 import { INTERACTION_TYPE_LABELS } from '@/lib/labels/leads';
@@ -25,11 +27,15 @@ function relativeTime(date: Date): string {
   return rtf.format(Math.round(diffMonth / 12), 'year');
 }
 
+const WHATSAPP_TYPES = new Set<LeadInteractionType>([
+  'WHATSAPP_SENT',
+  'WHATSAPP_RECEIVED',
+]);
+
+/** Tipos que o vendedor registra manualmente na ficha (não o espelho do chat). */
 const ADD_TYPES: { value: LeadInteractionType; label: string }[] = [
   { value: 'NOTE', label: INTERACTION_TYPE_LABELS.NOTE },
   { value: 'PHONE_CALL', label: INTERACTION_TYPE_LABELS.PHONE_CALL },
-  { value: 'WHATSAPP_SENT', label: INTERACTION_TYPE_LABELS.WHATSAPP_SENT },
-  { value: 'WHATSAPP_RECEIVED', label: INTERACTION_TYPE_LABELS.WHATSAPP_RECEIVED },
   { value: 'EMAIL_SENT', label: INTERACTION_TYPE_LABELS.EMAIL_SENT },
   { value: 'EMAIL_RECEIVED', label: INTERACTION_TYPE_LABELS.EMAIL_RECEIVED },
   { value: 'VISIT', label: INTERACTION_TYPE_LABELS.VISIT },
@@ -37,28 +43,64 @@ const ADD_TYPES: { value: LeadInteractionType; label: string }[] = [
   { value: 'TEST_DRIVE', label: INTERACTION_TYPE_LABELS.TEST_DRIVE },
 ];
 
+function isTimelineActivity(ix: LeadInteraction): boolean {
+  return !WHATSAPP_TYPES.has(ix.type);
+}
+
 export function LeadTimeline({
   orgSlug,
   leadId,
   interactions,
   authorNames,
+  inboxConversationId,
 }: {
   orgSlug: string;
   leadId: string;
   interactions: LeadInteraction[];
   authorNames: Record<string, string>;
+  inboxConversationId?: string | null;
 }) {
   const router = useRouter();
-  const sorted = [...interactions].sort(
-    (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
-  );
+
+  const whatsappCount = interactions.filter((ix) =>
+    WHATSAPP_TYPES.has(ix.type),
+  ).length;
+
+  const activities = [...interactions]
+    .filter(isTimelineActivity)
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Timeline</CardTitle>
+      <CardHeader className="space-y-1">
+        <CardTitle>Atividades</CardTitle>
+        <p className="text-muted-foreground text-sm">
+          Notas, ligações e visitas do CRM. O histórico completo do WhatsApp
+          fica no Atendimento.
+        </p>
       </CardHeader>
       <CardContent className="space-y-6">
+        {inboxConversationId ? (
+          <Link
+            href={`/${orgSlug}/inbox/${inboxConversationId}?tab=attending`}
+            className="flex items-center gap-3 rounded-lg border border-emerald-200 bg-emerald-50/80 px-3 py-3 text-sm transition-colors hover:bg-emerald-50 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:hover:bg-emerald-950/50"
+          >
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white">
+              <MessageCircle className="h-4 w-4" />
+            </span>
+            <span className="min-w-0">
+              <span className="block font-medium text-emerald-900 dark:text-emerald-100">
+                Abrir conversa no WhatsApp
+              </span>
+              <span className="text-emerald-800/80 text-xs dark:text-emerald-300/90">
+                {whatsappCount > 0
+                  ? `${whatsappCount} mensagem${whatsappCount === 1 ? '' : 'ens'} registrada${whatsappCount === 1 ? '' : 's'} no atendimento`
+                  : 'Ver chat com este lead'}
+              </span>
+            </span>
+          </Link>
+        ) : null}
+
         <form
           className="space-y-3"
           action={async (formData) => {
@@ -91,19 +133,20 @@ export function LeadTimeline({
               minLength={1}
               rows={3}
               className="mt-1"
-              placeholder="Descreva o contato ou a nota…"
+              placeholder="Ex: Cliente pediu retorno amanhã às 10h…"
             />
           </div>
-          <Button type="submit">Adicionar</Button>
+          <Button type="submit">Adicionar nota</Button>
         </form>
 
         <ul className="space-y-4 border-t pt-4">
-          {sorted.length === 0 ? (
+          {activities.length === 0 ? (
             <li className="text-muted-foreground text-sm">
-              Nenhuma interação ainda.
+              Nenhuma atividade registrada ainda. Use o formulário acima para
+              anotar ligações, visitas e follow-ups.
             </li>
           ) : (
-            sorted.map((ix) => (
+            activities.map((ix) => (
               <li key={ix.id} className="space-y-1 text-sm">
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge variant="outline">
@@ -117,7 +160,7 @@ export function LeadTimeline({
                 <p className="text-muted-foreground text-xs">
                   {ix.createdBy
                     ? (authorNames[ix.createdBy] ?? ix.createdBy)
-                    : '—'}
+                    : 'Sistema'}
                 </p>
               </li>
             ))

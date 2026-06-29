@@ -127,6 +127,10 @@ export function ChatHeader({
   };
 
   const isResolved = conversation.status === 'RESOLVED';
+  const canResolve =
+    !isResolved &&
+    Boolean(conversation.assignedToId) &&
+    conversation.status === 'OPEN';
 
   return (
     <div className="shrink-0 border-b border-zinc-200/80 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-950">
@@ -198,6 +202,19 @@ export function ChatHeader({
             </span>
           ) : null}
 
+          {canResolve ? (
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleResolve}
+              disabled={isPending}
+              className="border-green-200 bg-green-50 text-green-800 hover:bg-green-100 dark:border-green-900 dark:bg-green-950/40 dark:text-green-300 dark:hover:bg-green-950/60"
+            >
+              <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
+              Encerrar
+            </Button>
+          ) : null}
+
           <DropdownMenu>
             <DropdownMenuTrigger
               className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border/80 bg-background text-foreground shadow-xs hover:bg-muted"
@@ -237,8 +254,7 @@ export function ChatHeader({
                   Detalhes do contato
                 </DropdownMenuItem>
               ) : null}
-              {conversation.assignedToId &&
-              conversation.status === 'OPEN' ? (
+              {canResolve ? (
                 <>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem

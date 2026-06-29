@@ -84,6 +84,7 @@ export async function createLead(
       phone: input.phone ?? null,
       email: input.email ?? null,
       cpf: input.cpf ?? null,
+      birthDate: input.birthDate ?? null,
       source: input.source,
       sourceDetails: input.sourceDetails ?? null,
       status: input.status,

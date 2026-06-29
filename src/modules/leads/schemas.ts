@@ -83,6 +83,7 @@ export const createLeadSchema = z.object({
     .optional()
     .nullable(),
   cpf: cpfNormalized,
+  birthDate: z.date().optional().nullable(),
   source: leadSourceEnum.default('OTHER'),
   sourceDetails: z.string().trim().max(200).optional().nullable(),
   status: leadStatusEnum.default('NEW'),
@@ -95,6 +96,7 @@ export const createLeadSchema = z.object({
   tradeInDescription: z.string().trim().max(500).optional().nullable(),
   budgetMinCents: z.number().int().min(0).optional().nullable(),
   budgetMaxCents: z.number().int().min(0).optional().nullable(),
+  estimatedValueCents: z.number().int().min(0).optional().nullable(),
 });
 
 export const updateLeadSchema = createLeadSchema.partial();

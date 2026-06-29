@@ -70,6 +70,7 @@ export interface UazapiSendTextPayload {
   linkPreview?: boolean;
   delay?: number;
   readchat?: boolean;
+  replyid?: string;
 }
 
 export interface UazapiSendTextResponse {

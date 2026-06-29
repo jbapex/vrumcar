@@ -2,6 +2,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { formatKm, formatPriceBRL } from '@/lib/format';
 import { listVehicles } from '@/modules/vehicles/service';
+import { countInterestedLeadsByVehicleIds } from '@/modules/leads/vehicle-interest';
 import {
   filtersToSearchParams,
   parseVehicleFiltersFromSearchParams,
@@ -66,6 +67,10 @@ export default async function VehiclesListPage({
 
   const filters = parseVehicleFiltersFromSearchParams(sp);
   const result = await listVehicles(org.id, filters);
+  const interestCounts = await countInterestedLeadsByVehicleIds(
+    org.id,
+    result.items.map((v) => v.id),
+  );
 
   const prevPage = filters.page > 1 ? filters.page - 1 : null;
   const nextPage =
@@ -243,6 +248,7 @@ export default async function VehiclesListPage({
                 <ListTableHeadCell>Ano</ListTableHeadCell>
                 <ListTableHeadCell>KM</ListTableHeadCell>
                 <ListTableHeadCell>Preço</ListTableHeadCell>
+                <ListTableHeadCell>Interessados</ListTableHeadCell>
                 <ListTableHeadCell>Status</ListTableHeadCell>
                 <ListTableHeadCell>Ações</ListTableHeadCell>
               </ListTableHeader>
@@ -280,6 +286,16 @@ export default async function VehiclesListPage({
                       <ListTableCell>{formatKm(row.mileageKm)}</ListTableCell>
                       <ListTableCell>
                         {formatPriceBRL(row.salePriceCents)}
+                      </ListTableCell>
+                      <ListTableCell>
+                        {(interestCounts[row.id] ?? 0) > 0 ? (
+                          <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+                            {interestCounts[row.id]} lead
+                            {(interestCounts[row.id] ?? 0) === 1 ? '' : 's'}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground text-xs">—</span>
+                        )}
                       </ListTableCell>
                       <ListTableCell>
                         <VehicleStatusBadge status={row.status} />

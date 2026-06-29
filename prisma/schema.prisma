@@ -69,6 +69,7 @@ model Organization {
   conversations    Conversation[]
   messages         Message[]
   tasks            Task[]
+  appointments     Appointment[]
 
   @@index([status])
   @@map("organizations")
@@ -115,6 +116,8 @@ model User {
   sentMessages          Message[]      @relation("MessageSentBy")
   assignedTasks         Task[]         @relation("TaskAssignedTo")
   createdTasks          Task[]         @relation("TaskCreatedBy")
+  assignedAppointments  Appointment[]  @relation("AppointmentAssignedTo")
+  createdAppointments   Appointment[]  @relation("AppointmentCreatedBy")
 
   @@map("users")
 }
@@ -297,6 +300,7 @@ model Vehicle {
   interestedLeads  Lead[]             @relation("LeadInterestVehicle")
   sales            Sale[]             @relation("SaleVehicle")
   tasks            Task[]
+  appointments     Appointment[]
 
   // Auditoria
   createdBy String?   @map("created_by")
@@ -688,6 +692,12 @@ model Message {
   mediaFileName  String? @map("media_file_name")
   metadata Json?
 
+  replyToMessageId String?  @map("reply_to_message_id")
+  replyTo          Message? @relation("MessageReplies", fields: [replyToMessageId], references: [id], onDelete: SetNull)
+  replies          Message[] @relation("MessageReplies")
+  quotedExternalMessageId String? @map("quoted_external_message_id")
+  reactions Json?
+
   status       MessageStatus @default(PENDING)
   sentAt       DateTime?     @map("sent_at")
   deliveredAt  DateTime?     @map("delivered_at")
@@ -715,6 +725,7 @@ model Lead {
   phone String?
   email String?
   cpf   String?
+  birthDate DateTime? @map("birth_date")
 
   source        LeadSource @default(OTHER)
   sourceDetails String?    @map("source_details")
@@ -743,6 +754,7 @@ model Lead {
   customer     Customer? @relation(fields: [customerId], references: [id])
   sale         Sale?     @relation("SaleLead")
   tasks        Task[]
+  appointments Appointment[]
 
   lostReason    String?   @map("lost_reason")
   wonAt         DateTime? @map("won_at")
@@ -841,4 +853,56 @@ model Task {
   @@index([organizationId, leadId])
   @@index([organizationId, dueDate])
   @@map("tasks")
+}
+
+// ===== AGENDAMENTOS =====
+
+enum AppointmentType {
+  TEST_DRIVE
+  VISIT
+  FOLLOW_UP
+  INSPECTION
+  DELIVERY
+  OTHER
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  NO_SHOW
+  CANCELLED
+}
+
+model Appointment {
+  id             String            @id @default(cuid())
+  organizationId String            @map("organization_id")
+  organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  type      AppointmentType
+  title     String
+  notes     String?           @db.Text
+  startTime DateTime          @map("start_time")
+  endTime   DateTime          @map("end_time")
+  status    AppointmentStatus @default(SCHEDULED)
+
+  leadId    String?  @map("lead_id")
+  lead      Lead?    @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  vehicleId String?  @map("vehicle_id")
+  vehicle   Vehicle? @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+
+  assignedToId String @map("assigned_to_id")
+  assignedTo   User   @relation("AppointmentAssignedTo", fields: [assignedToId], references: [id])
+  createdById  String @map("created_by_id")
+  createdBy    User   @relation("AppointmentCreatedBy", fields: [createdById], references: [id])
+
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  cancelledAt DateTime? @map("cancelled_at")
+
+  @@index([organizationId, startTime])
+  @@index([organizationId, assignedToId])
+  @@index([organizationId, status])
+  @@map("appointments")
 }

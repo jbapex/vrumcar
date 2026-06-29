@@ -48,6 +48,16 @@ function str(raw: FormDataEntryValue | null | undefined): string | undefined {
   return s === '' ? undefined : s;
 }
 
+function parseBirthDate(
+  raw: FormDataEntryValue | null | undefined,
+): Date | null | undefined {
+  const s = str(raw);
+  if (s === undefined) return undefined;
+  if (!s) return null;
+  const d = new Date(s);
+  return Number.isNaN(d.getTime()) ? undefined : d;
+}
+
 /**
  * Busca duplicatas ANTES de criar. Chamada pelo form client-side
  * via useTransition + server action pra mostrar modal de aviso.
@@ -78,6 +88,7 @@ export async function createLeadAction(orgSlug: string, formData: FormData) {
     phone: str(raw.phone),
     email: str(raw.email),
     cpf: str(raw.cpf),
+    birthDate: parseBirthDate(raw.birthDate),
     source: str(raw.source) ?? 'OTHER',
     sourceDetails: str(raw.sourceDetails),
     priority: str(raw.priority) ?? 'MEDIUM',
@@ -117,6 +128,7 @@ export async function updateLeadAction(
     phone: str(raw.phone),
     email: str(raw.email),
     cpf: str(raw.cpf),
+    birthDate: parseBirthDate(raw.birthDate),
     source: str(raw.source),
     sourceDetails: str(raw.sourceDetails),
     status: str(raw.status),
@@ -153,6 +165,7 @@ export async function updateLeadStatusAction(
   await updateLead(org.id, userId, leadId, { status });
   revalidatePath(`/${orgSlug}/leads/${leadId}`);
   revalidatePath(`/${orgSlug}/leads`);
+  revalidatePath(`/${orgSlug}/inbox`);
 }
 
 export async function deleteLeadAction(orgSlug: string, leadId: string) {

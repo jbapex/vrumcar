@@ -13,6 +13,7 @@ import { ensureBucket, uploadBuffer } from '@/lib/storage/upload';
 import { getInstanceClient } from './providers/uazapi/client';
 import type { UazapiMessageData } from './providers/uazapi/types';
 import { UazapiError } from './providers/uazapi/types';
+import type { MessageReactions } from '@/lib/inbox/message-reactions';
 
 export function isGroupChat(chatId: string): boolean {
   return chatId.includes('@g.us');
@@ -243,6 +244,63 @@ export async function migrateConversationsFromRemovedChannels(
   return result.count;
 }
 
+function isReactionMessage(messageType: string, data: UazapiMessageData): boolean {
+  const mt = messageType.toLowerCase();
+  if (mt === 'reaction' || mt === 'reactionmessage') return true;
+  const reactionTarget = (data.reaction as string | undefined)?.trim();
+  const quotedId = (data.quoted as string | undefined)?.trim();
+  return Boolean(reactionTarget && !quotedId && mt !== 'conversation');
+}
+
+function extractReactionEmoji(data: UazapiMessageData, text: string): string {
+  const trimmed = text.trim();
+  if (trimmed) return trimmed;
+  const content = data.content;
+  if (content && typeof content === 'object') {
+    const record = content as Record<string, unknown>;
+    if (typeof record.text === 'string' && record.text.trim()) {
+      return record.text.trim();
+    }
+  }
+  return '';
+}
+
+async function upsertMessageReaction(
+  db: ReturnType<typeof getTenantPrisma>,
+  conversationId: string,
+  externalTargetId: string,
+  payload: { emoji: string; fromMe: boolean },
+): Promise<void> {
+  const target = await db.message.findFirst({
+    where: { conversationId, externalMessageId: externalTargetId },
+  });
+  if (!target) return;
+
+  const key = payload.fromMe ? 'agent' : 'contact';
+  const current = (target.reactions as MessageReactions | null) ?? {};
+  const next: MessageReactions = {
+    ...current,
+    [key]: payload.emoji || null,
+  };
+
+  await db.message.update({
+    where: { id: target.id },
+    data: { reactions: next },
+  });
+}
+
+async function resolveReplyToMessageId(
+  db: ReturnType<typeof getTenantPrisma>,
+  conversationId: string,
+  quotedExternalId: string,
+): Promise<string | null> {
+  const parent = await db.message.findFirst({
+    where: { conversationId, externalMessageId: quotedExternalId },
+    select: { id: true },
+  });
+  return parent?.id ?? null;
+}
+
 export async function ingestIncomingMessage(
   organizationId: string,
   channelInstanceId: string,
@@ -342,6 +400,17 @@ export async function ingestIncomingMessage(
     await reopenConversationIfResolved(organizationId, conversation.id);
   }
 
+  const quotedId = (data.quoted as string | undefined)?.trim() ?? '';
+  const reactionTargetId = (data.reaction as string | undefined)?.trim() ?? '';
+
+  if (isReactionMessage(messageType, data) && reactionTargetId) {
+    await upsertMessageReaction(db, conversation.id, reactionTargetId, {
+      emoji: extractReactionEmoji(data, text),
+      fromMe,
+    });
+    return null;
+  }
+
   // Decide se o texto vai como conteúdo principal ou como caption de mídia
   const isMediaType = ['IMAGE', 'AUDIO', 'VIDEO', 'DOCUMENT'].includes(
     mappedType,
@@ -350,6 +419,10 @@ export async function ingestIncomingMessage(
     text ||
     (data.content as { text?: string } | undefined)?.text ||
     '';
+
+  const replyToMessageId = quotedId
+    ? await resolveReplyToMessageId(db, conversation.id, quotedId)
+    : null;
 
   const message = await db.message.create({
     data: {
@@ -363,6 +436,8 @@ export async function ingestIncomingMessage(
       mediaCaption: isMediaType ? messageText || null : null,
       status: 'DELIVERED',
       sentAt: new Date(timestamp),
+      replyToMessageId,
+      quotedExternalMessageId: quotedId && !replyToMessageId ? quotedId : null,
       metadata: data as object,
     },
   });
@@ -494,7 +569,11 @@ export function assertConversationReplyAllowed(
 export async function sendTextMessage(
   organizationId: string,
   userId: string,
-  params: { conversationId: string; text: string },
+  params: {
+    conversationId: string;
+    text: string;
+    replyToMessageId?: string | null;
+  },
 ): Promise<Message> {
   const db = getTenantPrisma(organizationId);
 
@@ -513,6 +592,22 @@ export async function sendTextMessage(
     throw new Error('Channel instance has no token');
   }
 
+  let replyToMessageId: string | null = null;
+  let replyExternalId: string | undefined;
+  if (params.replyToMessageId) {
+    const replyTarget = await db.message.findFirst({
+      where: {
+        id: params.replyToMessageId,
+        conversationId: conversation.id,
+      },
+      select: { id: true, externalMessageId: true },
+    });
+    if (replyTarget?.externalMessageId) {
+      replyToMessageId = replyTarget.id;
+      replyExternalId = replyTarget.externalMessageId;
+    }
+  }
+
   const message = await db.message.create({
     data: {
       organizationId,
@@ -522,6 +617,7 @@ export async function sendTextMessage(
       text: params.text,
       status: 'PENDING',
       sentByUserId: userId,
+      replyToMessageId,
     },
   });
 
@@ -534,6 +630,7 @@ export async function sendTextMessage(
     const result = await client.sendText({
       number: conversation.externalChatId,
       text: params.text,
+      replyid: replyExternalId,
     });
 
     const updated = await db.message.update({
@@ -583,6 +680,62 @@ export async function sendTextMessage(
     });
     throw err;
   }
+}
+
+export async function reactToConversationMessage(
+  organizationId: string,
+  userId: string,
+  params: { conversationId: string; messageId: string; emoji: string },
+): Promise<void> {
+  const db = getTenantPrisma(organizationId);
+
+  await ensureConversationChannelActive(organizationId, params.conversationId);
+
+  const conversation = await db.conversation.findFirst({
+    where: { id: params.conversationId, deletedAt: null },
+    include: { channelInstance: true },
+  });
+  if (!conversation) throw new Error('Conversation not found');
+  assertConversationReplyAllowed(conversation, userId);
+  if (conversation.channelInstance.status !== 'CONNECTED') {
+    throw new Error('Channel instance not connected');
+  }
+  if (!conversation.channelInstance.encryptedToken) {
+    throw new Error('Channel instance has no token');
+  }
+
+  const target = await db.message.findFirst({
+    where: {
+      id: params.messageId,
+      conversationId: conversation.id,
+    },
+  });
+  if (!target?.externalMessageId) {
+    throw new Error('Mensagem ainda não sincronizada com o WhatsApp');
+  }
+
+  const token = decrypt(conversation.channelInstance.encryptedToken);
+  const client = getInstanceClient(
+    token,
+    conversation.channelInstance.baseUrl,
+  );
+
+  await client.reactToMessage({
+    number: conversation.externalChatId,
+    text: params.emoji,
+    id: target.externalMessageId,
+  });
+
+  const current = (target.reactions as MessageReactions | null) ?? {};
+  await db.message.update({
+    where: { id: target.id },
+    data: {
+      reactions: {
+        ...current,
+        agent: params.emoji || null,
+      },
+    },
+  });
 }
 
 export async function listConversations(
@@ -639,7 +792,22 @@ export async function listConversations(
     db.conversation.findMany({
       where,
       include: {
-        lead: { select: { id: true, name: true, status: true } },
+        lead: {
+          select: {
+            id: true,
+            name: true,
+            status: true,
+            interestVehicleId: true,
+            interestVehicle: {
+              select: {
+                id: true,
+                brand: true,
+                model: true,
+                year: true,
+              },
+            },
+          },
+        },
         channelInstance: { select: { id: true, name: true, status: true } },
         assignedTo: { select: { id: true, name: true, email: true } },
         messages: {
@@ -681,6 +849,17 @@ export async function listMessages(
     where: {
       conversationId,
       ...(params.before && { createdAt: { lt: params.before } }),
+    },
+    include: {
+      replyTo: {
+        select: {
+          id: true,
+          direction: true,
+          type: true,
+          text: true,
+          mediaCaption: true,
+        },
+      },
     },
     orderBy: { createdAt: 'desc' },
     take: limit,

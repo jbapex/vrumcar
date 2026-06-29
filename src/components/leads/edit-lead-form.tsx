@@ -30,6 +30,7 @@ export type EditLeadFormLead = {
   phone: string | null;
   email: string | null;
   cpf: string | null;
+  birthDate: Date | string | null;
   source: LeadSource;
   sourceDetails: string | null;
   status: LeadStatus;
@@ -66,6 +67,11 @@ export function EditLeadForm({ orgSlug, lead, users, vehicles }: Props) {
   const [phone, setPhone] = useState(lead.phone ?? '');
   const [email, setEmail] = useState(lead.email ?? '');
   const [cpf, setCpf] = useState(lead.cpf ?? '');
+  const [birthDate, setBirthDate] = useState(
+    lead.birthDate != null
+      ? new Date(lead.birthDate).toISOString().slice(0, 10)
+      : '',
+  );
   const [source, setSource] = useState<LeadSource>(lead.source);
   const [sourceDetails, setSourceDetails] = useState(lead.sourceDetails ?? '');
   const [status, setStatus] = useState<LeadStatus>(lead.status);
@@ -128,14 +134,26 @@ export function EditLeadForm({ orgSlug, lead, users, vehicles }: Props) {
               />
             </div>
           </div>
-          <div>
-            <Label htmlFor="cpf">CPF</Label>
-            <Input
-              id="cpf"
-              name="cpf"
-              value={cpf}
-              onChange={(e) => setCpf(e.target.value)}
-            />
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div>
+              <Label htmlFor="cpf">CPF</Label>
+              <Input
+                id="cpf"
+                name="cpf"
+                value={cpf}
+                onChange={(e) => setCpf(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="birthDate">Data de nascimento</Label>
+              <Input
+                id="birthDate"
+                name="birthDate"
+                type="date"
+                value={birthDate}
+                onChange={(e) => setBirthDate(e.target.value)}
+              />
+            </div>
           </div>
         </CardContent>
       </Card>

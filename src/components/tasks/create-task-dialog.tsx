@@ -3,15 +3,23 @@
 import { createTaskAction } from '@/app/[orgSlug]/tasks/actions';
 import { Loader2, Plus, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useState, useTransition } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 
 interface Props {
   orgSlug: string;
   teamMembers: Array<{ userId: string; name: string }>;
   leads: Array<{ id: string; name: string }>;
+  defaultLeadId?: string;
+  autoOpen?: boolean;
 }
 
-export function CreateTaskDialog({ orgSlug, teamMembers, leads }: Props) {
+export function CreateTaskDialog({
+  orgSlug,
+  teamMembers,
+  leads,
+  defaultLeadId,
+  autoOpen,
+}: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -22,7 +30,15 @@ export function CreateTaskDialog({ orgSlug, teamMembers, leads }: Props) {
   const [priority, setPriority] = useState('MEDIUM');
   const [dueDate, setDueDate] = useState('');
   const [assignedToId, setAssignedToId] = useState('');
-  const [leadId, setLeadId] = useState('');
+  const [leadId, setLeadId] = useState(defaultLeadId ?? '');
+
+  useEffect(() => {
+    if (defaultLeadId) setLeadId(defaultLeadId);
+  }, [defaultLeadId]);
+
+  useEffect(() => {
+    if (autoOpen) setOpen(true);
+  }, [autoOpen]);
 
   const handleSubmit = () => {
     if (!title.trim()) {

@@ -114,6 +114,14 @@ export class UazapiClient {
     return this.request<UazapiSendTextResponse>('POST', '/send/text', payload);
   }
 
+  async reactToMessage(params: {
+    number: string;
+    text: string;
+    id: string;
+  }): Promise<Record<string, unknown>> {
+    return this.request<Record<string, unknown>>('POST', '/message/react', params);
+  }
+
   /**
    * Envia imagem via URL pública.
    * Endpoint: POST /send/image

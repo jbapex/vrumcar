@@ -4,6 +4,7 @@ import {
   listConversations,
   migrateConversationsFromRemovedChannels,
 } from '@/modules/channels/conversation-service';
+import { getLeadTaskCounts } from '@/lib/inbox/list-meta';
 import type { ConversationListItem } from '@/components/inbox/conversation-list';
 import { InboxEmptyPanel } from '@/components/inbox/inbox-empty-panel';
 import { InboxPoller } from '@/components/inbox/inbox-poller';
@@ -37,6 +38,7 @@ function parseOnlyMine(
 
 function toListItem(
   c: Awaited<ReturnType<typeof listConversations>>['items'][number],
+  taskCounts: Map<string, number>,
 ): ConversationListItem {
   return {
     id: c.id,
@@ -51,6 +53,7 @@ function toListItem(
     lead: c.lead,
     assignedTo: c.assignedTo,
     channelName: c.channelInstance?.name,
+    pendingTasks: c.leadId ? taskCounts.get(c.leadId) ?? 0 : 0,
     messages: c.messages,
   };
 }
@@ -145,7 +148,13 @@ export default async function InboxPage({
     }),
   ]);
 
-  const listItems = conversationsResult.items.map(toListItem);
+  const taskCounts = await getLeadTaskCounts(
+    org.id,
+    conversationsResult.items.map((c) => c.leadId),
+  );
+  const listItems = conversationsResult.items.map((c) =>
+    toListItem(c, taskCounts),
+  );
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden md:flex-row">
@@ -156,6 +165,7 @@ export default async function InboxPage({
         onlyMine={onlyMine}
         userRole={userRole}
         connectedChannels={connectedChannels}
+        currentUserId={userId}
         items={listItems}
         counts={{
           inbox: inboxCount.total,

@@ -7,6 +7,7 @@ import { redirect } from 'next/navigation';
 
 interface Props {
   params: Promise<{ orgSlug: string }>;
+  searchParams: Promise<{ leadId?: string; new?: string }>;
 }
 
 function isToday(date: Date): boolean {
@@ -18,8 +19,9 @@ function isToday(date: Date): boolean {
   );
 }
 
-export default async function TasksPage({ params }: Props) {
+export default async function TasksPage({ params, searchParams }: Props) {
   const { orgSlug } = await params;
+  const sp = await searchParams;
 
   const session = await auth();
   if (!session?.user?.id) redirect('/login');
@@ -116,6 +118,8 @@ export default async function TasksPage({ params }: Props) {
           orgSlug={orgSlug}
           teamMembers={teamMembers}
           leads={leads}
+          defaultLeadId={sp.leadId}
+          autoOpen={sp.new === '1'}
         />
       </div>
 

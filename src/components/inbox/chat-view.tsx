@@ -2,12 +2,16 @@
 
 import {
   attendConversationAction,
+  reactToMessageAction,
   reopenConversationAction,
   sendMessageAction,
 } from '@/app/[orgSlug]/inbox/actions';
 import { ChatHeader } from '@/components/inbox/chat-header';
 import { ContactPanel } from '@/components/inbox/contact-panel';
+import { InboxContextShortcuts } from '@/components/inbox/inbox-context-shortcuts';
+import { InboxEmojiPicker } from '@/components/inbox/inbox-emoji-picker';
 import { InboxQuickReplies } from '@/components/inbox/inbox-quick-replies';
+import { InboxQuickTaskButton } from '@/components/inbox/inbox-quick-task-button';
 import {
   MediaAttachButton,
   MediaSendProvider,
@@ -16,6 +20,8 @@ import { AudioMessage } from '@/components/inbox/media/audio-message';
 import { DocumentMessage } from '@/components/inbox/media/document-message';
 import { ImageMessage } from '@/components/inbox/media/image-message';
 import { MessageContextMenu } from '@/components/inbox/message-context-menu';
+import { MessageQuotePreview } from '@/components/inbox/message-quote-preview';
+import { MessageReactionsDisplay } from '@/components/inbox/message-reactions-display';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { formatRelativeTime } from '@/lib/format/relative-time';
@@ -23,7 +29,7 @@ import {
   buildInboxConversationUrl,
   type InboxTab,
 } from '@/lib/inbox/routing';
-import type { Message } from '@prisma/client';
+import type { Message, MessageType } from '@prisma/client';
 import {
   AlertCircle,
   Check,
@@ -34,10 +40,21 @@ import {
   RotateCcw,
   UserPlus,
   WifiOff,
+  X,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState, useTransition } from 'react';
+
+type ChatMessage = Message & {
+  replyTo?: {
+    id: string;
+    direction: string;
+    type: MessageType;
+    text: string | null;
+    mediaCaption: string | null;
+  } | null;
+};
 
 type OptimisticMessage = {
   clientId: string;
@@ -47,7 +64,7 @@ type OptimisticMessage = {
   createdAt: Date;
 };
 
-type DisplayMessage = Message | (OptimisticMessage & {
+type DisplayMessage = ChatMessage | (OptimisticMessage & {
   id: string;
   direction: 'OUTBOUND';
   type: 'TEXT';
@@ -102,9 +119,21 @@ interface ChatViewProps {
       phone: string | null;
       email: string | null;
       cpf: string | null;
+      birthDate: Date | string | null;
       status: string;
+      source: string;
+      priority: string;
       notes: string | null;
       createdAt: Date | string;
+      assignedToId: string | null;
+      estimatedValueCents: number | null;
+      budgetMinCents: number | null;
+      budgetMaxCents: number | null;
+      hasTradeIn: boolean;
+      tradeInDescription: string | null;
+      interestDescription: string | null;
+      interestVehicleId: string | null;
+      assignedTo?: { id: string; name: string } | null;
       interestVehicle?: {
         id: string;
         brand: string;
@@ -124,7 +153,7 @@ interface ChatViewProps {
     assignedTo: { id: string; name: string | null; email: string } | null;
     status: string;
   };
-  messages: Message[];
+  messages: ChatMessage[];
   teamMembers: Array<{
     userId: string;
     name: string | null;
@@ -132,6 +161,18 @@ interface ChatViewProps {
     role: string;
   }>;
   currentUserId: string;
+  leadContext?: {
+    pendingTasks: number;
+    upcomingAppointments: number;
+    vehicleInterestedCount: number;
+  };
+  stockVehicles: Array<{
+    id: string;
+    brand: string;
+    model: string;
+    year: number | null;
+    salePriceCents: number;
+  }>;
 }
 
 function getMessageCopyText(msg: DisplayMessage): string | null {
@@ -233,12 +274,15 @@ export function ChatView({
   messages,
   teamMembers,
   currentUserId,
+  leadContext,
+  stockVehicles,
 }: ChatViewProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const onlyMine = searchParams.get('mine') === 'true';
   const search = searchParams.get('search') ?? undefined;
   const [text, setText] = useState('');
+  const [replyToMessage, setReplyToMessage] = useState<ChatMessage | null>(null);
   const [contactPanelOpen, setContactPanelOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -298,7 +342,9 @@ export function ChatView({
     setError(null);
     const clientId = `opt-${crypto.randomUUID()}`;
     const sentText = trimmed;
+    const replyId = replyToMessage?.id ?? null;
     setText('');
+    setReplyToMessage(null);
     document.getElementById('inbox-composer')?.focus();
 
     setOptimisticMessages((prev) => [
@@ -316,6 +362,7 @@ export function ChatView({
         const formData = new FormData();
         formData.set('conversationId', conversation.id);
         formData.set('text', sentText);
+        if (replyId) formData.set('replyToMessageId', replyId);
         await sendMessageAction(orgSlug, formData);
         router.refresh();
       } catch (err) {
@@ -363,6 +410,22 @@ export function ChatView({
     });
   };
 
+  const handleReact = (messageId: string, emoji: string) => {
+    startTransition(async () => {
+      try {
+        await reactToMessageAction(
+          orgSlug,
+          conversation.id,
+          messageId,
+          emoji,
+        );
+        router.refresh();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Erro ao reagir');
+      }
+    });
+  };
+
   return (
     <div className="flex h-full min-h-0 flex-1 bg-white dark:bg-zinc-950">
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
@@ -402,7 +465,7 @@ export function ChatView({
                   <div
                     className={`group relative flex ${isOutbound ? 'justify-end' : 'justify-start'}`}
                   >
-                  <div className="relative inline-block max-w-[70%]">
+                  <div className="relative inline-block max-w-[70%] pb-2">
                     <div
                       className={`rounded-lg px-3 py-2 shadow-sm ${
                         isOutbound
@@ -410,6 +473,12 @@ export function ChatView({
                           : 'bg-white text-zinc-900 dark:bg-zinc-900 dark:text-zinc-100'
                       }`}
                     >
+                      {!isOptimisticMessage(msg) && msg.replyTo ? (
+                        <MessageQuotePreview
+                          message={msg.replyTo}
+                          isOutboundBubble={isOutbound}
+                        />
+                      ) : null}
                       {msgType === 'IMAGE' && !isOptimisticMessage(msg) ? (
                         <ImageMessage
                           orgSlug={orgSlug}
@@ -487,12 +556,22 @@ export function ChatView({
                       ) : null}
                     </div>
                     {!isOptimisticMessage(msg) ? (
+                      <MessageReactionsDisplay
+                        reactions={msg.reactions}
+                        isOutbound={isOutbound}
+                      />
+                    ) : null}
+                    {!isOptimisticMessage(msg) ? (
                     <div
                       className={`absolute top-0 z-10 ${isOutbound ? 'right-full mr-1' : 'left-full ml-1'}`}
                     >
                       <MessageContextMenu
                         messageText={getMessageCopyText(msg)}
                         canDelete={isOutbound}
+                        canReply={canReply}
+                        canReact={canReply && !isOutbound}
+                        onReply={() => setReplyToMessage(msg)}
+                        onReact={(emoji) => handleReact(msg.id, emoji)}
                         onDelete={() => alert('Deletar: em breve')}
                       />
                     </div>
@@ -587,14 +666,61 @@ export function ChatView({
               </p>
             ) : null}
 
+            {replyToMessage ? (
+              <div className="flex items-start gap-2 border-b border-zinc-200/80 bg-white px-4 py-2 dark:border-zinc-800 dark:bg-zinc-950">
+                <div className="min-w-0 flex-1">
+                  <p className="text-[11px] font-semibold text-purple-700 dark:text-purple-300">
+                    Respondendo
+                  </p>
+                  <MessageQuotePreview
+                    message={replyToMessage}
+                    isOutboundBubble={false}
+                    compact
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setReplyToMessage(null)}
+                  className="rounded-md p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800"
+                  aria-label="Cancelar resposta"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            ) : null}
+
+            <InboxContextShortcuts
+              orgSlug={orgSlug}
+              leadId={conversation.leadId}
+              vehicle={conversation.lead?.interestVehicle ?? null}
+              interestedCount={leadContext?.vehicleInterestedCount ?? 0}
+              onInsertText={(replyText) => setText(replyText)}
+              disabled={!canReply}
+            />
+
             <InboxQuickReplies
               disabled={!canReply}
               onSelect={(replyText) => setText(replyText)}
             />
 
             <div className="flex items-end gap-2 px-3 py-3">
+              <InboxQuickTaskButton
+                orgSlug={orgSlug}
+                conversationId={conversation.id}
+                leadId={conversation.leadId}
+                leadName={conversation.lead?.name ?? conversation.contactName}
+                vehicleId={conversation.lead?.interestVehicleId ?? null}
+                teamMembers={teamMembers}
+                currentUserId={currentUserId}
+                pendingTasks={leadContext?.pendingTasks ?? 0}
+              />
               <MediaAttachButton disabled={!canReply} />
-              <div className="flex min-w-0 flex-1 items-end rounded-3xl bg-white px-3 py-2 shadow-sm ring-1 ring-black/[0.06] dark:bg-zinc-950 dark:ring-white/10">
+              <div className="flex min-w-0 flex-1 items-end gap-1 rounded-3xl bg-white px-2 py-2 shadow-sm ring-1 ring-black/[0.06] dark:bg-zinc-950 dark:ring-white/10">
+                <InboxEmojiPicker
+                  disabled={!canReply}
+                  text={text}
+                  onTextChange={setText}
+                />
                 <Textarea
                   id="inbox-composer"
                   value={text}
@@ -639,6 +765,9 @@ export function ChatView({
         contactAvatar={conversation.contactAvatar}
         phoneNumber={conversation.phoneNumber}
         lead={conversation.lead}
+        leadContext={leadContext}
+        vehicles={stockVehicles}
+        teamMembers={teamMembers}
         conversationInfo={{
           id: conversation.id,
           channelName: conversation.channelInstance.name,
@@ -657,6 +786,9 @@ export function ChatView({
         contactAvatar={conversation.contactAvatar}
         phoneNumber={conversation.phoneNumber}
         lead={conversation.lead}
+        leadContext={leadContext}
+        vehicles={stockVehicles}
+        teamMembers={teamMembers}
         conversationInfo={{
           id: conversation.id,
           channelName: conversation.channelInstance.name,

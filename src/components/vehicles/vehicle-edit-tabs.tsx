@@ -11,6 +11,7 @@ type VehicleEditTabsProps = {
   dados: React.ReactNode;
   fotos: React.ReactNode;
   custos: React.ReactNode;
+  interessados: React.ReactNode;
   historico: React.ReactNode;
 };
 
@@ -18,6 +19,7 @@ export function VehicleEditTabs({
   dados,
   fotos,
   custos,
+  interessados,
   historico,
 }: VehicleEditTabsProps) {
   return (
@@ -36,6 +38,9 @@ export function VehicleEditTabs({
           <TabsTrigger value="custos" className="px-3 text-xs">
             Custos
           </TabsTrigger>
+          <TabsTrigger value="interessados" className="px-3 text-xs">
+            Interessados
+          </TabsTrigger>
           <TabsTrigger value="historico" className="px-3 text-xs">
             Histórico de preço
           </TabsTrigger>
@@ -49,6 +54,9 @@ export function VehicleEditTabs({
       </TabsContent>
       <TabsContent value="custos" className="p-4 md:p-5">
         {custos}
+      </TabsContent>
+      <TabsContent value="interessados" className="p-4 md:p-5">
+        {interessados}
       </TabsContent>
       <TabsContent value="historico" className="p-4 md:p-5">
         {historico}

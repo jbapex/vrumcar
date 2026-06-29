@@ -17,9 +17,11 @@ import { NotificationSound } from '@/components/inbox/notification-sound';
 import { MarkConversationRead } from '@/components/inbox/mark-conversation-read';
 import { notFound, redirect } from 'next/navigation';
 import {
-  buildInboxConversationUrl,
+  buildInboxListUrl,
   conversationInboxTab,
 } from '@/lib/inbox/routing';
+import { getLeadTaskCounts } from '@/lib/inbox/list-meta';
+import { countInterestedLeadsForVehicle } from '@/modules/leads/vehicle-interest';
 
 type InboxTab = 'inbox' | 'attending' | 'resolved';
 
@@ -47,6 +49,7 @@ function parseOnlyMine(
 
 function toListItem(
   c: Awaited<ReturnType<typeof listConversations>>['items'][number],
+  taskCounts: Map<string, number>,
 ): ConversationListItem {
   return {
     id: c.id,
@@ -61,6 +64,7 @@ function toListItem(
     lead: c.lead,
     assignedTo: c.assignedTo,
     channelName: c.channelInstance?.name,
+    pendingTasks: c.leadId ? taskCounts.get(c.leadId) ?? 0 : 0,
     messages: c.messages,
   };
 }
@@ -71,9 +75,21 @@ const leadSelect = {
   phone: true,
   email: true,
   cpf: true,
+  birthDate: true,
   status: true,
+  source: true,
+  priority: true,
   notes: true,
   createdAt: true,
+  assignedToId: true,
+  estimatedValueCents: true,
+  budgetMinCents: true,
+  budgetMaxCents: true,
+  hasTradeIn: true,
+  tradeInDescription: true,
+  interestDescription: true,
+  interestVehicleId: true,
+  assignedTo: { select: { id: true, name: true } },
   interestVehicle: {
     select: {
       id: true,
@@ -157,12 +173,7 @@ export default async function InboxConversationPage({
     assignedToId: refreshed.assignedToId,
   });
   if (tab !== expectedTab) {
-    redirect(
-      buildInboxConversationUrl(orgSlug, conversationId, expectedTab, {
-        onlyMine,
-        search,
-      }),
-    );
+    redirect(buildInboxListUrl(orgSlug, tab, { onlyMine, search }));
   }
 
   let channelInstance = refreshed.channelInstance;
@@ -236,7 +247,68 @@ export default async function InboxConversationPage({
     }),
   ]);
 
-  const listItems = conversationsResult.items.map(toListItem);
+  const taskCounts = await getLeadTaskCounts(
+    org.id,
+    conversationsResult.items.map((c) => c.leadId),
+  );
+  const listItems = conversationsResult.items.map((c) =>
+    toListItem(c, taskCounts),
+  );
+
+  const [stockVehicles, pendingTasks, upcomingAppointments, vehicleInterestedCount] =
+    await Promise.all([
+      prisma.vehicle.findMany({
+        where: {
+          organizationId: org.id,
+          deletedAt: null,
+          status: { in: ['AVAILABLE', 'RESERVED'] },
+        },
+        select: {
+          id: true,
+          brand: true,
+          model: true,
+          year: true,
+          salePriceCents: true,
+        },
+        orderBy: [{ brand: 'asc' }, { model: 'asc' }],
+        take: 100,
+      }),
+      refreshed.leadId
+        ? prisma.task.count({
+            where: {
+              organizationId: org.id,
+              leadId: refreshed.leadId,
+              deletedAt: null,
+              status: { notIn: ['COMPLETED', 'CANCELLED'] },
+            },
+          })
+        : Promise.resolve(0),
+      refreshed.leadId
+        ? prisma.appointment.count({
+            where: {
+              organizationId: org.id,
+              leadId: refreshed.leadId,
+              cancelledAt: null,
+              startTime: { gte: new Date() },
+              status: { notIn: ['CANCELLED', 'NO_SHOW', 'COMPLETED'] },
+            },
+          })
+        : Promise.resolve(0),
+      refreshed.lead?.interestVehicle?.id
+        ? countInterestedLeadsForVehicle(
+            org.id,
+            refreshed.lead.interestVehicle.id,
+          )
+        : Promise.resolve(0),
+    ]);
+
+  const leadContext = refreshed.leadId
+    ? {
+        pendingTasks,
+        upcomingAppointments,
+        vehicleInterestedCount,
+      }
+    : undefined;
 
   return (
     <>
@@ -252,6 +324,7 @@ export default async function InboxConversationPage({
           onlyMine={onlyMine}
           userRole={userRole}
           connectedChannels={connectedChannels}
+          currentUserId={userId}
           items={listItems}
           activeConversationId={conversationId}
           className="max-md:max-h-[42vh] md:max-h-full"
@@ -281,6 +354,8 @@ export default async function InboxConversationPage({
             messages={messages}
             teamMembers={teamMembers}
             currentUserId={userId}
+            leadContext={leadContext}
+            stockVehicles={stockVehicles}
           />
         </main>
       </div>

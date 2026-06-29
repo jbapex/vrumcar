@@ -21,6 +21,7 @@ interface Props {
   onlyMine: boolean;
   userRole: string;
   connectedChannels: number;
+  currentUserId: string;
   items: ConversationListItem[];
   counts: { inbox: number; attending: number; resolved: number };
   activeConversationId?: string;
@@ -34,6 +35,7 @@ export function InboxSidebar({
   onlyMine,
   userRole,
   connectedChannels,
+  currentUserId,
   items,
   counts,
   activeConversationId,
@@ -42,7 +44,7 @@ export function InboxSidebar({
   return (
     <aside
       className={cn(
-        'flex h-full min-h-0 w-full shrink-0 flex-col overflow-hidden border-zinc-200/80 bg-white dark:border-zinc-800 dark:bg-zinc-950 md:w-[min(100%,380px)] md:border-r',
+        'flex h-full min-h-0 w-full shrink-0 flex-col overflow-hidden border-zinc-200/80 bg-white dark:border-zinc-800 dark:bg-zinc-950 md:w-[min(100%,400px)] md:border-r',
         className,
       )}
     >
@@ -75,6 +77,8 @@ export function InboxSidebar({
             orgSlug={orgSlug}
             items={items}
             activeConversationId={activeConversationId}
+            currentUserId={currentUserId}
+            connectedChannels={connectedChannels}
             tab={tab}
             onlyMine={onlyMine}
             search={search}

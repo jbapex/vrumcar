@@ -20,6 +20,7 @@ export const createChannelInstanceSchema = z.object({
 export const sendTextMessageSchema = z.object({
   conversationId: z.string().min(1),
   text: z.string().trim().min(1, 'Mensagem não pode ser vazia').max(4096),
+  replyToMessageId: z.string().optional().nullable(),
 });
 
 export const uazapiWebhookSchema = z.object({

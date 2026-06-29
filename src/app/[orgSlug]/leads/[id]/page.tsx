@@ -154,6 +154,16 @@ export default async function LeadDetailPage({
     lead.interestVehicleId,
   );
 
+  const inboxConversation = await prisma.conversation.findFirst({
+    where: {
+      organizationId: org.id,
+      leadId: lead.id,
+      deletedAt: null,
+    },
+    orderBy: { lastMessageAt: 'desc' },
+    select: { id: true },
+  });
+
   const hasCustomer = Boolean(lead.customerId);
 
   return (
@@ -216,6 +226,7 @@ export default async function LeadDetailPage({
               phone: lead.phone,
               email: lead.email,
               cpf: lead.cpf,
+              birthDate: lead.birthDate,
               source: lead.source,
               sourceDetails: lead.sourceDetails,
               status: lead.status,
@@ -238,6 +249,7 @@ export default async function LeadDetailPage({
             leadId={lead.id}
             interactions={lead.interactions}
             authorNames={authorNames}
+            inboxConversationId={inboxConversation?.id}
           />
         </div>
       </div>

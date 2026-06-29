@@ -22,6 +22,8 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { formatDate, formatPriceBRL } from '@/lib/format';
 import { getVehicleById } from '@/modules/vehicles/service';
+import { listInterestedLeadsForVehicle } from '@/modules/leads/vehicle-interest';
+import { VehicleInterestedLeadsPanel } from '@/components/vehicles/vehicle-interested-leads-panel';
 import { notFound, redirect } from 'next/navigation';
 
 export default async function EditVehiclePage({
@@ -54,6 +56,8 @@ export default async function EditVehiclePage({
   if (!vehicle) {
     notFound();
   }
+
+  const interestedLeads = await listInterestedLeadsForVehicle(org.id, id);
 
   const photos = [...vehicle.photos].sort((a, b) => a.order - b.order);
   const vehicleTitle = [
@@ -108,6 +112,13 @@ export default async function EditVehiclePage({
             />
           }
           custos={<VehicleCostsPanel orgSlug={orgSlug} vehicle={vehicle} />}
+          interessados={
+            <VehicleInterestedLeadsPanel
+              orgSlug={orgSlug}
+              vehicleLabel={vehicleTitle}
+              leads={interestedLeads}
+            />
+          }
           historico={
             vehicle.priceHistory.length === 0 ? (
               <ListPageEmpty className="py-8">
