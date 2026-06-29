@@ -1,7 +1,24 @@
 'use client';
 
-import { PipelineColumn } from '@/components/pipeline/pipeline-column';
-import type { PipelineColumn as ColumnType } from '@/modules/pipeline/pipeline-service';
+import { moveLeadStatusAction } from '@/app/[orgSlug]/pipeline/actions';
+import type {
+  PipelineCard as CardType,
+  PipelineColumn as ColumnType,
+} from '@/modules/pipeline/pipeline-service';
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragStartEvent,
+} from '@dnd-kit/core';
+import { useRouter } from 'next/navigation';
+import { useState, useTransition } from 'react';
+import { PipelineCardCompact } from './pipeline-card';
+import { PipelineColumn } from './pipeline-column';
 
 interface Props {
   orgSlug: string;
@@ -9,11 +26,17 @@ interface Props {
 }
 
 export function PipelineBoard({ orgSlug, columns }: Props) {
-  const activeColumns = columns.filter(
-    (c) => c.status !== 'WON' && c.status !== 'LOST',
+  const router = useRouter();
+  const [activeCard, setActiveCard] = useState<CardType | null>(null);
+  const [, startTransition] = useTransition();
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
   );
-  const wonColumn = columns.find((c) => c.status === 'WON');
-  const lostColumn = columns.find((c) => c.status === 'LOST');
 
   const totalLeads = columns.reduce((s, c) => s + c.cards.length, 0);
   const totalValue = columns.reduce((s, c) => s + c.totalValueCents, 0);
@@ -22,6 +45,40 @@ export function PipelineBoard({ orgSlug, columns }: Props) {
     status: c.status,
     label: c.label,
   }));
+
+  const allCards = columns.flatMap((c) => c.cards);
+
+  const handleDragStart = (event: DragStartEvent) => {
+    const card = allCards.find((c) => c.id === event.active.id);
+    setActiveCard(card ?? null);
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    setActiveCard(null);
+
+    const { active, over } = event;
+    if (!over) return;
+
+    const cardId = active.id as string;
+    const targetColumnStatus = over.id as string;
+
+    const card = allCards.find((c) => c.id === cardId);
+    if (!card) return;
+
+    if (card.status === targetColumnStatus) return;
+
+    const validStatus = columns.some((c) => c.status === targetColumnStatus);
+    if (!validStatus) return;
+
+    startTransition(async () => {
+      try {
+        await moveLeadStatusAction(orgSlug, cardId, targetColumnStatus);
+        router.refresh();
+      } catch (err) {
+        alert(err instanceof Error ? err.message : 'Erro ao mover');
+      }
+    });
+  };
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -44,42 +101,36 @@ export function PipelineBoard({ orgSlug, columns }: Props) {
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-x-auto overflow-y-auto p-4">
-        <div
-          className="flex gap-4"
-          style={{ minWidth: `${activeColumns.length * 280}px` }}
-        >
-          {activeColumns.map((col) => (
-            <PipelineColumn
-              key={col.status}
-              column={col}
-              orgSlug={orgSlug}
-              allStatuses={statusOptions}
-            />
-          ))}
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      >
+        <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden p-4">
+          <div
+            className="flex h-full min-h-0 items-start gap-4"
+            style={{ minWidth: `${columns.length * 276}px` }}
+          >
+            {columns.map((col) => (
+              <PipelineColumn
+                key={col.status}
+                column={col}
+                orgSlug={orgSlug}
+                allStatuses={statusOptions}
+              />
+            ))}
+          </div>
         </div>
 
-        {(wonColumn || lostColumn) && (
-          <div className="mt-6 grid gap-4 md:grid-cols-2">
-            {wonColumn && wonColumn.cards.length > 0 ? (
-              <PipelineColumn
-                column={wonColumn}
-                orgSlug={orgSlug}
-                allStatuses={statusOptions}
-                compact
-              />
-            ) : null}
-            {lostColumn && lostColumn.cards.length > 0 ? (
-              <PipelineColumn
-                column={lostColumn}
-                orgSlug={orgSlug}
-                allStatuses={statusOptions}
-                compact
-              />
-            ) : null}
-          </div>
-        )}
-      </div>
+        <DragOverlay>
+          {activeCard ? (
+            <div className="w-[240px] rotate-2 opacity-90">
+              <PipelineCardCompact card={activeCard} />
+            </div>
+          ) : null}
+        </DragOverlay>
+      </DndContext>
     </div>
   );
 }

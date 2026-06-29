@@ -2,20 +2,19 @@
 
 import { PipelineCard } from '@/components/pipeline/pipeline-card';
 import type { PipelineColumn as ColumnType } from '@/modules/pipeline/pipeline-service';
+import { useDroppable } from '@dnd-kit/core';
 
 interface Props {
   column: ColumnType;
   orgSlug: string;
   allStatuses: Array<{ status: string; label: string }>;
-  compact?: boolean;
 }
 
-export function PipelineColumn({
-  column,
-  orgSlug,
-  allStatuses,
-  compact,
-}: Props) {
+export function PipelineColumn({ column, orgSlug, allStatuses }: Props) {
+  const { isOver, setNodeRef } = useDroppable({
+    id: column.status,
+  });
+
   const formatValue = (cents: number) =>
     (cents / 100).toLocaleString('pt-BR', {
       style: 'currency',
@@ -24,12 +23,8 @@ export function PipelineColumn({
     });
 
   return (
-    <div
-      className={`flex flex-col rounded-xl bg-zinc-50 dark:bg-zinc-900/50 ${
-        compact ? '' : 'w-[260px] min-w-[260px]'
-      }`}
-    >
-      <div className="flex items-center justify-between px-3 py-3">
+    <div className="flex h-full max-h-[calc(100vh-180px)] w-[260px] min-w-[260px] shrink-0 flex-col rounded-xl bg-zinc-50 dark:bg-zinc-900/50">
+      <div className="flex shrink-0 items-center justify-between px-3 py-3">
         <div className="flex items-center gap-2">
           <div className={`h-2.5 w-2.5 rounded-full ${column.color}`} />
           <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-200">
@@ -47,10 +42,10 @@ export function PipelineColumn({
       </div>
 
       <div
-        className={`space-y-2 px-2 pb-3 ${
-          compact ? 'max-h-48 overflow-y-auto' : 'flex-1 overflow-y-auto'
+        ref={setNodeRef}
+        className={`min-h-0 flex-1 space-y-2 overflow-y-auto px-2 pb-3 transition-colors ${
+          isOver ? 'rounded-lg bg-purple-50 dark:bg-purple-950/30' : ''
         }`}
-        style={compact ? undefined : { maxHeight: 'calc(100vh - 240px)' }}
       >
         {column.cards.length === 0 ? (
           <div className="rounded-lg border border-dashed border-zinc-300 px-3 py-6 text-center text-xs text-zinc-400 dark:border-zinc-700">

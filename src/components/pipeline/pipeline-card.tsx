@@ -2,6 +2,8 @@
 
 import { moveLeadStatusAction } from '@/app/[orgSlug]/pipeline/actions';
 import type { PipelineCard as CardType } from '@/modules/pipeline/pipeline-service';
+import { useDraggable } from '@dnd-kit/core';
+import { CSS } from '@dnd-kit/utilities';
 import {
   ChevronLeft,
   ChevronRight,
@@ -33,6 +35,34 @@ const SOURCE_ICONS: Record<string, ReactNode> = {
   WEBSITE: <Globe className="h-3 w-3 text-purple-600" />,
 };
 
+function formatPipelineValue(cents: number) {
+  return (cents / 100).toLocaleString('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+    minimumFractionDigits: 0,
+  });
+}
+
+export function PipelineCardCompact({ card }: { card: CardType }) {
+  return (
+    <div className="rounded-lg border border-purple-300 bg-white p-3 shadow-lg dark:border-purple-700 dark:bg-zinc-950">
+      <p className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+        {card.name}
+      </p>
+      {card.vehicleInterest ? (
+        <p className="mt-1 truncate text-xs text-zinc-500 dark:text-zinc-400">
+          🚗 {card.vehicleInterest}
+        </p>
+      ) : null}
+      {card.estimatedValueCents && card.estimatedValueCents > 0 ? (
+        <p className="mt-1 text-xs font-medium text-green-700 dark:text-green-400">
+          {formatPipelineValue(card.estimatedValueCents)}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 export function PipelineCard({
   card,
   orgSlug,
@@ -42,6 +72,15 @@ export function PipelineCard({
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
+
+  const { attributes, listeners, setNodeRef, transform, isDragging } =
+    useDraggable({
+      id: card.id,
+    });
+
+  const style = transform
+    ? { transform: CSS.Translate.toString(transform) }
+    : undefined;
 
   const currentIdx = allStatuses.findIndex((s) => s.status === currentStatus);
   const canMoveForward =
@@ -66,21 +105,23 @@ export function PipelineCard({
     });
   };
 
-  const formatValue = (cents: number) =>
-    (cents / 100).toLocaleString('pt-BR', {
-      style: 'currency',
-      currency: 'BRL',
-      minimumFractionDigits: 0,
-    });
-
   return (
     <div
-      className={`group rounded-lg border border-zinc-200 bg-white p-3 shadow-sm transition-shadow hover:shadow-md dark:border-zinc-700 dark:bg-zinc-950 ${
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      className={`group cursor-grab rounded-lg border border-zinc-200 bg-white p-3 shadow-sm transition-shadow hover:shadow-md active:cursor-grabbing dark:border-zinc-700 dark:bg-zinc-950 ${
         isPending ? 'opacity-50' : ''
-      }`}
+      } ${isDragging ? 'opacity-30' : ''}`}
     >
       <div className="flex items-start justify-between">
-        <Link href={`/${orgSlug}/leads/${card.id}`} className="min-w-0 flex-1">
+        <Link
+          href={`/${orgSlug}/leads/${card.id}`}
+          onClick={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
+          className="min-w-0 flex-1"
+        >
           <p className="truncate text-sm font-semibold text-zinc-900 hover:text-purple-700 dark:text-zinc-100 dark:hover:text-purple-300">
             {card.name}
           </p>
@@ -89,7 +130,11 @@ export function PipelineCard({
         <div className="relative">
           <button
             type="button"
-            onClick={() => setMenuOpen(!menuOpen)}
+            onClick={(e) => {
+              e.stopPropagation();
+              setMenuOpen(!menuOpen);
+            }}
+            onPointerDown={(e) => e.stopPropagation()}
             className="rounded p-0.5 text-zinc-400 opacity-0 hover:bg-zinc-100 group-hover:opacity-100 dark:hover:bg-zinc-800"
             aria-label="Mover lead"
           >
@@ -117,7 +162,11 @@ export function PipelineCard({
                     <button
                       key={s.status}
                       type="button"
-                      onClick={() => handleMove(s.status)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleMove(s.status);
+                      }}
+                      onPointerDown={(e) => e.stopPropagation()}
                       disabled={isPending}
                       className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-zinc-700 hover:bg-zinc-100 disabled:opacity-50 dark:text-zinc-200 dark:hover:bg-zinc-800"
                     >
@@ -140,7 +189,7 @@ export function PipelineCard({
         {card.estimatedValueCents && card.estimatedValueCents > 0 ? (
           <span className="flex items-center gap-1 font-medium text-green-700 dark:text-green-400">
             <DollarSign className="h-3 w-3" />
-            {formatValue(card.estimatedValueCents)}
+            {formatPipelineValue(card.estimatedValueCents)}
           </span>
         ) : null}
 
@@ -172,7 +221,11 @@ export function PipelineCard({
           {canMoveBack && allStatuses[currentIdx - 1] ? (
             <button
               type="button"
-              onClick={() => handleMove(allStatuses[currentIdx - 1]!.status)}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleMove(allStatuses[currentIdx - 1]!.status);
+              }}
+              onPointerDown={(e) => e.stopPropagation()}
               disabled={isPending}
               className="rounded p-0.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 disabled:opacity-50 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
               title={`Voltar para ${allStatuses[currentIdx - 1]!.label}`}
@@ -183,7 +236,11 @@ export function PipelineCard({
           {canMoveForward && allStatuses[currentIdx + 1] ? (
             <button
               type="button"
-              onClick={() => handleMove(allStatuses[currentIdx + 1]!.status)}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleMove(allStatuses[currentIdx + 1]!.status);
+              }}
+              onPointerDown={(e) => e.stopPropagation()}
               disabled={isPending}
               className="rounded p-0.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 disabled:opacity-50 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
               title={`Avançar para ${allStatuses[currentIdx + 1]!.label}`}
