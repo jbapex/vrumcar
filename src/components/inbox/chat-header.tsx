@@ -2,6 +2,7 @@
 
 import {
   attendConversationAction,
+  reopenConversationAction,
   resolveConversationAction,
 } from '@/app/[orgSlug]/inbox/actions';
 import { ContactAvatar } from '@/components/inbox/contact-avatar';
@@ -15,6 +16,10 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { formatPhone } from '@/lib/format/phone';
+import {
+  buildInboxConversationUrl,
+  type InboxTab,
+} from '@/lib/inbox/routing';
 import { LEAD_STATUS_LABELS } from '@/lib/labels/leads';
 import type { LeadStatus } from '@prisma/client';
 import {
@@ -22,9 +27,10 @@ import {
   ExternalLink,
   Info,
   MoreHorizontal,
+  RotateCcw,
   UserPlus,
 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useTransition } from 'react';
 
 interface TeamMember {
@@ -52,6 +58,14 @@ interface Props {
   onOpenContactPanel?: () => void;
 }
 
+function useInboxQueryParams() {
+  const searchParams = useSearchParams();
+  return {
+    onlyMine: searchParams.get('mine') === 'true',
+    search: searchParams.get('search') ?? undefined,
+  };
+}
+
 export function ChatHeader({
   orgSlug,
   conversation,
@@ -59,6 +73,7 @@ export function ChatHeader({
   onOpenContactPanel,
 }: Props) {
   const router = useRouter();
+  const { onlyMine, search } = useInboxQueryParams();
   const [isPending, startTransition] = useTransition();
 
   const displayName =
@@ -66,10 +81,20 @@ export function ChatHeader({
     formatPhone(conversation.phoneNumber) ||
     conversation.phoneNumber;
 
+  const navigateToTab = (tab: InboxTab) => {
+    router.push(
+      buildInboxConversationUrl(orgSlug, conversation.id, tab, {
+        onlyMine,
+        search,
+      }),
+    );
+  };
+
   const handleAttend = () => {
     startTransition(async () => {
       try {
         await attendConversationAction(orgSlug, conversation.id);
+        navigateToTab('attending');
         router.refresh();
       } catch (err) {
         alert(err instanceof Error ? err.message : 'Erro');
@@ -81,12 +106,27 @@ export function ChatHeader({
     startTransition(async () => {
       try {
         await resolveConversationAction(orgSlug, conversation.id);
+        navigateToTab('resolved');
         router.refresh();
       } catch (err) {
         alert(err instanceof Error ? err.message : 'Erro');
       }
     });
   };
+
+  const handleReopen = () => {
+    startTransition(async () => {
+      try {
+        await reopenConversationAction(orgSlug, conversation.id);
+        navigateToTab('attending');
+        router.refresh();
+      } catch (err) {
+        alert(err instanceof Error ? err.message : 'Erro ao reabrir');
+      }
+    });
+  };
+
+  const isResolved = conversation.status === 'RESOLVED';
 
   return (
     <div className="shrink-0 border-b border-zinc-200/80 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-950">
@@ -117,7 +157,7 @@ export function ChatHeader({
             <p className="text-muted-foreground truncate text-xs">
               {formatPhone(conversation.phoneNumber)} ·{' '}
               {conversation.channelInstance.name}
-              {conversation.assignedTo
+              {conversation.assignedTo && !isResolved
                 ? ` · ${conversation.assignedTo.name ?? conversation.assignedTo.email}`
                 : ''}
             </p>
@@ -125,7 +165,7 @@ export function ChatHeader({
         </button>
 
         <div className="flex shrink-0 items-center gap-2">
-          {!conversation.assignedToId ? (
+          {!conversation.assignedToId && !isResolved ? (
             <Button
               type="button"
               size="sm"
@@ -138,7 +178,21 @@ export function ChatHeader({
             </Button>
           ) : null}
 
-          {conversation.status === 'RESOLVED' ? (
+          {isResolved ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={handleReopen}
+              disabled={isPending}
+              className="hidden sm:inline-flex"
+            >
+              <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
+              Reabrir
+            </Button>
+          ) : null}
+
+          {isResolved ? (
             <span className="rounded-full bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700 dark:bg-green-950/40 dark:text-green-300">
               Resolvido
             </span>
@@ -152,10 +206,16 @@ export function ChatHeader({
               <MoreHorizontal className="h-4 w-4" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-52">
-              {!conversation.assignedToId ? (
+              {!conversation.assignedToId && !isResolved ? (
                 <DropdownMenuItem onClick={handleAttend} disabled={isPending}>
                   <UserPlus className="mr-2 h-4 w-4" />
                   Atender conversa
+                </DropdownMenuItem>
+              ) : null}
+              {isResolved ? (
+                <DropdownMenuItem onClick={handleReopen} disabled={isPending}>
+                  <RotateCcw className="mr-2 h-4 w-4" />
+                  Reabrir atendimento
                 </DropdownMenuItem>
               ) : null}
               {conversation.lead ? (

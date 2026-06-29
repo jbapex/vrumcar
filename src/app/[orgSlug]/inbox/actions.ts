@@ -8,6 +8,7 @@ import {
   assignConversation,
   markConversationAsRead,
   reassignConversation,
+  reopenConversation,
   resolveConversation,
   sendTextMessage,
 } from '@/modules/channels/conversation-service';
@@ -116,6 +117,22 @@ export async function resolveConversationAction(
     await resolveConversation(org.id, conversationId, userId);
   } catch (err) {
     throw new Error(err instanceof Error ? err.message : 'Erro ao resolver');
+  }
+
+  revalidatePath(`/${orgSlug}/inbox`);
+  revalidatePath(`/${orgSlug}/inbox/${conversationId}`);
+}
+
+export async function reopenConversationAction(
+  orgSlug: string,
+  conversationId: string,
+) {
+  const { org, userId } = await requireOrgAccess(orgSlug);
+
+  try {
+    await reopenConversation(org.id, conversationId, userId);
+  } catch (err) {
+    throw new Error(err instanceof Error ? err.message : 'Erro ao reabrir');
   }
 
   revalidatePath(`/${orgSlug}/inbox`);

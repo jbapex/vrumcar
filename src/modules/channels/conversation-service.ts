@@ -475,9 +475,12 @@ export async function updateMessageStatus(
  * Fluxo explícito: Entrada → Atender → responder.
  */
 export function assertConversationReplyAllowed(
-  conversation: { assignedToId: string | null },
+  conversation: { assignedToId: string | null; status: string },
   userId: string,
 ): void {
+  if (conversation.status === 'RESOLVED') {
+    throw new Error('Reabra o atendimento antes de enviar mensagens');
+  }
   if (!conversation.assignedToId) {
     throw new Error(
       'Assuma esta conversa clicando em Atender antes de responder',
@@ -752,8 +755,8 @@ export async function resolveConversation(
 }
 
 /**
- * Reabre uma conversa resolvida automaticamente quando cliente
- * manda nova mensagem. Mantém o dono anterior.
+ * Cliente mandou mensagem em conversa resolvida → volta para a Entrada
+ * (sem vendedor), para qualquer um da equipe assumir de novo.
  */
 export async function reopenConversationIfResolved(
   organizationId: string,
@@ -770,6 +773,38 @@ export async function reopenConversationIfResolved(
       status: 'OPEN',
       resolvedAt: null,
       resolvedByUserId: null,
+      assignedToId: null,
+      assignedAt: null,
+    },
+  });
+}
+
+/**
+ * Vendedor reabre manualmente uma conversa resolvida e assume o atendimento.
+ */
+export async function reopenConversation(
+  organizationId: string,
+  conversationId: string,
+  userId: string,
+): Promise<void> {
+  const db = getTenantPrisma(organizationId);
+
+  const conv = await db.conversation.findFirst({
+    where: { id: conversationId, deletedAt: null },
+  });
+  if (!conv) throw new Error('Conversa não encontrada');
+  if (conv.status !== 'RESOLVED') {
+    throw new Error('Esta conversa não está resolvida');
+  }
+
+  await db.conversation.update({
+    where: { id: conversationId },
+    data: {
+      status: 'OPEN',
+      resolvedAt: null,
+      resolvedByUserId: null,
+      assignedToId: userId,
+      assignedAt: new Date(),
     },
   });
 }

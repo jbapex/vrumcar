@@ -16,6 +16,10 @@ import { InboxSidebar } from '@/components/inbox/inbox-sidebar';
 import { NotificationSound } from '@/components/inbox/notification-sound';
 import { MarkConversationRead } from '@/components/inbox/mark-conversation-read';
 import { notFound, redirect } from 'next/navigation';
+import {
+  buildInboxConversationUrl,
+  conversationInboxTab,
+} from '@/lib/inbox/routing';
 
 type InboxTab = 'inbox' | 'attending' | 'resolved';
 
@@ -146,6 +150,19 @@ export default async function InboxConversationPage({
 
   if (!refreshed) {
     notFound();
+  }
+
+  const expectedTab = conversationInboxTab({
+    status: refreshed.status,
+    assignedToId: refreshed.assignedToId,
+  });
+  if (tab !== expectedTab) {
+    redirect(
+      buildInboxConversationUrl(orgSlug, conversationId, expectedTab, {
+        onlyMine,
+        search,
+      }),
+    );
   }
 
   let channelInstance = refreshed.channelInstance;

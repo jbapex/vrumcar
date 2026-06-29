@@ -2,6 +2,7 @@
 
 import {
   attendConversationAction,
+  reopenConversationAction,
   sendMessageAction,
 } from '@/app/[orgSlug]/inbox/actions';
 import { ChatHeader } from '@/components/inbox/chat-header';
@@ -18,18 +19,24 @@ import { MessageContextMenu } from '@/components/inbox/message-context-menu';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { formatRelativeTime } from '@/lib/format/relative-time';
+import {
+  buildInboxConversationUrl,
+  type InboxTab,
+} from '@/lib/inbox/routing';
 import type { Message } from '@prisma/client';
 import {
   AlertCircle,
   Check,
   CheckCheck,
+  CheckCircle2,
   Clock,
   Send,
+  RotateCcw,
   UserPlus,
   WifiOff,
 } from 'lucide-react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState, useTransition } from 'react';
 
 type OptimisticMessage = {
@@ -228,6 +235,9 @@ export function ChatView({
   currentUserId,
 }: ChatViewProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const onlyMine = searchParams.get('mine') === 'true';
+  const search = searchParams.get('search') ?? undefined;
   const [text, setText] = useState('');
   const [contactPanelOpen, setContactPanelOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -263,11 +273,23 @@ export function ChatView({
   ];
 
   const channelOffline = conversation.channelInstance.status !== 'CONNECTED';
-  const needsAttend = !conversation.assignedToId;
+  const isResolved = conversation.status === 'RESOLVED';
+  const needsAttend = !isResolved && !conversation.assignedToId;
   const assignedToOther =
+    !isResolved &&
     Boolean(conversation.assignedToId) &&
     conversation.assignedToId !== currentUserId;
-  const canReply = !channelOffline && !needsAttend && !assignedToOther;
+  const canReply =
+    !channelOffline && !needsAttend && !assignedToOther && !isResolved;
+
+  const navigateToTab = (tab: InboxTab) => {
+    router.push(
+      buildInboxConversationUrl(orgSlug, conversation.id, tab, {
+        onlyMine,
+        search,
+      }),
+    );
+  };
 
   const handleSend = () => {
     const trimmed = text.trim();
@@ -321,9 +343,22 @@ export function ChatView({
     startTransition(async () => {
       try {
         await attendConversationAction(orgSlug, conversation.id);
+        navigateToTab('attending');
         router.refresh();
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Erro ao atender');
+      }
+    });
+  };
+
+  const handleReopen = () => {
+    startTransition(async () => {
+      try {
+        await reopenConversationAction(orgSlug, conversation.id);
+        navigateToTab('attending');
+        router.refresh();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Erro ao reabrir');
       }
     });
   };
@@ -487,6 +522,28 @@ export function ChatView({
             </div>
           ) : null}
 
+          {isResolved ? (
+            <div className="flex items-center gap-3 border-b border-green-200/70 bg-green-50/90 px-4 py-3 dark:border-green-900/40 dark:bg-green-950/30">
+              <CheckCircle2 className="h-4 w-4 shrink-0 text-green-700 dark:text-green-300" />
+              <p className="min-w-0 flex-1 text-xs text-green-900 dark:text-green-100">
+                Atendimento encerrado.{' '}
+                <span className="font-semibold">Reabra</span> para voltar a
+                conversar com este lead.
+              </p>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={handleReopen}
+                disabled={isPending}
+                className="shrink-0 border-green-300 bg-white dark:border-green-800 dark:bg-green-950"
+              >
+                <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
+                Reabrir
+              </Button>
+            </div>
+          ) : null}
+
           {needsAttend ? (
             <div className="flex items-center gap-3 border-b border-purple-200/70 bg-purple-50/90 px-4 py-3 dark:border-purple-900/40 dark:bg-purple-950/30">
               <UserPlus className="h-4 w-4 shrink-0 text-purple-700 dark:text-purple-300" />
@@ -546,11 +603,13 @@ export function ChatView({
                   placeholder={
                     channelOffline
                       ? 'Reconecte o canal para enviar...'
-                      : needsAttend
-                        ? 'Atenda a conversa para responder...'
-                        : assignedToOther
-                          ? 'Conversa com outro vendedor...'
-                          : 'Digite uma mensagem...'
+                      : isResolved
+                        ? 'Reabra o atendimento para responder...'
+                        : needsAttend
+                          ? 'Atenda a conversa para responder...'
+                          : assignedToOther
+                            ? 'Conversa com outro vendedor...'
+                            : 'Digite uma mensagem...'
                   }
                   rows={1}
                   disabled={!canReply}
