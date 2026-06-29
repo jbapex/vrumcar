@@ -5,6 +5,7 @@ import {
   BarChart3,
   Calendar,
   Car,
+  CheckSquare,
   ChevronsLeft,
   ChevronsRight,
   CircleDollarSign,
@@ -30,6 +31,7 @@ const navIcons = {
   Users,
   Contact,
   Columns3,
+  CheckSquare,
   ShoppingCart,
   MessageCircle,
   Smartphone,
@@ -54,6 +56,7 @@ function buildItems(orgSlug: string): NavDef[] {
     { href: `${p}/vehicles`, icon: 'Car', label: 'Estoque' },
     { href: `${p}/leads`, icon: 'Users', label: 'Leads' },
     { href: `${p}/pipeline`, icon: 'Columns3', label: 'Pipeline' },
+    { href: `${p}/tasks`, icon: 'CheckSquare', label: 'Tarefas' },
     { href: `${p}/customers`, icon: 'Contact', label: 'Clientes' },
     { href: `${p}/sales`, icon: 'ShoppingCart', label: 'Vendas' },
     {

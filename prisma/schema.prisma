@@ -68,6 +68,7 @@ model Organization {
   channelInstances ChannelInstance[]
   conversations    Conversation[]
   messages         Message[]
+  tasks            Task[]
 
   @@index([status])
   @@map("organizations")
@@ -112,6 +113,8 @@ model User {
   assignedConversations Conversation[] @relation("ConversationAssignedTo")
   resolvedConversations Conversation[] @relation("ConversationResolvedBy")
   sentMessages          Message[]      @relation("MessageSentBy")
+  assignedTasks         Task[]         @relation("TaskAssignedTo")
+  createdTasks          Task[]         @relation("TaskCreatedBy")
 
   @@map("users")
 }
@@ -293,6 +296,7 @@ model Vehicle {
   priceHistory     VehiclePriceHistory[]
   interestedLeads  Lead[]             @relation("LeadInterestVehicle")
   sales            Sale[]             @relation("SaleVehicle")
+  tasks            Task[]
 
   // Auditoria
   createdBy String?   @map("created_by")
@@ -738,6 +742,7 @@ model Lead {
   customerId   String?   @map("customer_id")
   customer     Customer? @relation(fields: [customerId], references: [id])
   sale         Sale?     @relation("SaleLead")
+  tasks        Task[]
 
   lostReason    String?   @map("lost_reason")
   wonAt         DateTime? @map("won_at")
@@ -787,4 +792,53 @@ model LeadInteraction {
 
   @@index([organizationId, leadId, createdAt])
   @@map("lead_interactions")
+}
+
+// ===== TAREFAS / ATIVIDADES =====
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+model Task {
+  id             String       @id @default(cuid())
+  organizationId String       @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  title       String
+  description String?      @db.Text
+  status      TaskStatus   @default(PENDING)
+  priority    TaskPriority @default(MEDIUM)
+  dueDate     DateTime?    @map("due_date")
+  completedAt DateTime?    @map("completed_at")
+
+  leadId    String?  @map("lead_id")
+  lead      Lead?    @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  vehicleId String?  @map("vehicle_id")
+  vehicle   Vehicle? @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+
+  assignedToId String? @map("assigned_to_id")
+  assignedTo   User?   @relation("TaskAssignedTo", fields: [assignedToId], references: [id], onDelete: SetNull)
+  createdById  String  @map("created_by_id")
+  createdBy    User    @relation("TaskCreatedBy", fields: [createdById], references: [id])
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@index([organizationId, status])
+  @@index([organizationId, assignedToId])
+  @@index([organizationId, leadId])
+  @@index([organizationId, dueDate])
+  @@map("tasks")
 }
