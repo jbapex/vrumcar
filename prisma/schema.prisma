@@ -384,6 +384,8 @@ enum LeadStatus {
   NEW
   CONTACTED
   QUALIFIED
+  VISIT_SCHEDULED
+  PROPOSAL_SENT
   VISITING
   NEGOTIATING
   WON
@@ -729,6 +731,7 @@ model Lead {
 
   budgetMinCents Int? @map("budget_min_cents")
   budgetMaxCents Int? @map("budget_max_cents")
+  estimatedValueCents Int? @map("estimated_value_cents")
 
   interactions LeadInteraction[]
   conversations Conversation[] @relation("ConversationLead")

@@ -8,6 +8,8 @@ export const LEAD_STATUS_LABELS: Record<LeadStatus, string> = {
   NEW: 'Novo',
   CONTACTED: 'Contatado',
   QUALIFIED: 'Qualificado',
+  VISIT_SCHEDULED: 'Visita agendada',
+  PROPOSAL_SENT: 'Proposta enviada',
   VISITING: 'Em visita',
   NEGOTIATING: 'Negociando',
   WON: 'Ganhou',

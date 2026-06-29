@@ -4,6 +4,8 @@ export const leadStatusEnum = z.enum([
   'NEW',
   'CONTACTED',
   'QUALIFIED',
+  'VISIT_SCHEDULED',
+  'PROPOSAL_SENT',
   'VISITING',
   'NEGOTIATING',
   'WON',
